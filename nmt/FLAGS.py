@@ -1,5 +1,6 @@
 
 class base_config(object):
+    # region network
     config_name = 'base'
     num_units = 32
     num_layers = 2
@@ -32,6 +33,9 @@ class base_config(object):
 
     standard_output_attention = True # Only used in standard attention_architecture. Whether use attention as the cell output at each timestep.
     pass_hidden_state = True # Whether to pass encoder's hidden state to decoder when using an attention based model.
+    # endregion
+
+    # regiion optimizer
     optimizer = 'adam' # 'sgd' or 'adam'
     learning_rate = 0.001 # Adam: 0.001 or 0.0001; SGD: 1.0.
     warmup_steps = 0 # ?
@@ -48,8 +52,11 @@ class base_config(object):
           for 10 times before finishing.
     '''
 
+    epoch_step = 0
     num_train_steps = 12000
     colocate_gradients_with_ops = True # ?
+    # endregion
+
     init_op = 'uniform' # 'uniform' or 'glorot_normal' or 'glorot_uniform'
     init_weight = 0.1 # for uniform init_op, initialize weights between [-this, this].
 
@@ -62,7 +69,8 @@ class base_config(object):
     '''
     $out_dir/$config_name/nnet: ckpt
     $out_dir/$config_name/decode: decode results
-    $out_dir/$config_name/log: logs
+    $out_dir/$config_name/log: logs(include tensorboard log)
+    $out_dir/$config_name/hparams
     '''
 
     vocab_prefix = None # Vocab prefix, expect files with src/tgt suffixes.
@@ -94,8 +102,9 @@ class base_config(object):
     # Misc
     use_char_encoder = False # ?
     num_gpus = 1
+    gpu_list = "0" # "0,1,2,4"
     log_device_placement = False # ?
-    metrics = 'bleu' # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
+    metrics = 'bleu,rouge,accuracy'.split(',') # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
     steps_per_external_eval = None
     scope = None # ?
     hparams_path = None # Path to standard hparams json file that overrides hparams values from FLAGS.
