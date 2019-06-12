@@ -129,3 +129,6 @@ class base_config(object):
   num_workers = 1 # Number of workers (inference only).
   num_inter_threads = 0 # ?number of inter_op_parallelism_threads.
   num_intra_threads = 0 # ?number of intra_op_parallelism_threads.
+
+if __name__ == '__main__':
+  pass
