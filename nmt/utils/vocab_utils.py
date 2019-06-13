@@ -160,6 +160,34 @@ def new_or_pretrain_embed(log_file, embed_name, vocab_file, embed_file,
           embed_name, [vocab_size, embed_size], dtype)
   return embedding
 
+def _string_to_bytes(text, max_length):
+  """Given string and length, convert to byte seq of at most max_length.
+
+  This process mimics docqa/elmo's preprocessing:
+  https://github.com/allenai/document-qa/blob/master/docqa/elmo/data.py
+
+  Note that we make use of BOS_CHAR_ID and EOS_CHAR_ID in iterator_utils.py &
+  our usage differs from docqa/elmo.
+
+  Args:
+    text: tf.string tensor of shape []
+    max_length: max number of chars for each word.
+
+  Returns:
+    A tf.int32 tensor of the byte encoded text.
+  """
+  byte_ids = tf.to_int32(tf.decode_raw(text, tf.uint8))
+  byte_ids = byte_ids[:max_length - 2]
+  padding = tf.fill([max_length - tf.shape(byte_ids)[0] - 2], PAD_CHAR_ID)
+  byte_ids = tf.concat(
+      [[BOW_CHAR_ID], byte_ids, [EOW_CHAR_ID], padding], axis=0)
+  tf.logging.info(byte_ids)
+
+  byte_ids = tf.reshape(byte_ids, [max_length])
+  tf.logging.info(byte_ids.get_shape().as_list())
+  return byte_ids + 1
+
+
 def tokens_to_bytes(tokens):
   """Given a sequence of strings, map to sequence of bytes.
 
