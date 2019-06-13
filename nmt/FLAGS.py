@@ -1,16 +1,23 @@
 
 
 class base_config(object):
-  # region network
-  root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/copy_of_tensorflow_NMT'
+  root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   config_name = 'base'
+  min_TF_version = "1.12.0"
   '''
   # dir to store log, model and results files:
-  $root_dir/exp/$config_name/nnet: ckpt
-  $root_dir/exp/$config_name/decode: decode results
   $root_dir/exp/$config_name/log: logs(include tensorboard log)
+  $root_dir/exp/$config_name/summary: tensorboard summary
+  $root_dir/exp/$config_name/ckpt: ckpt
+  $root_dir/exp/$config_name/decode: decode results
   $root_dir/exp/$config_name/hparams
   '''
+
+  # dataset
+  output_buffer_size = None
+  use_char_encoder = False # ?
+
+  # region network
   num_units = 32
   num_layers = 2
   num_encoder_layers = None  # Encoder depth, equal to num_layers if None.
@@ -38,8 +45,8 @@ class base_config(object):
   '''
 
   residual = False # ?
-  time_major= False
-  num_embeddings_partitions = 0 # ?
+  time_major= True # Whether to use time-major mode for dynamic RNN.
+  # num_embeddings_partitions = 0 # ?
 
   standard_output_attention = True # Only used in standard attention_architecture. Whether use attention as the cell output at each timestep.
   pass_hidden_state = True # Whether to pass encoder's hidden state to decoder when using an attention based model.
@@ -71,17 +78,19 @@ class base_config(object):
   init_op = 'uniform' # 'uniform' or 'glorot_normal' or 'glorot_uniform'
   init_weight = 0.1 # for uniform init_op, initialize weights between [-this, this].
 
-  src = None # Source suffix, e.g., en. Must be assigned.
-  tgt = None # Target suffix.
-  train_prefix = None # Train prefix, expect files with src/tgt suffixes.
-  dev_prefix = None # Dev prefix.
-  test_prefix = None # Test prefix.
-  vocab_prefix = None # Vocab prefix, expect files with src/tgt suffixes.
+  src = "must fill" # Source suffix, e.g., en. Must be assigned.
+  tgt = "must fill" # Target suffix.
+  train_prefix = "must fill" # Train prefix, expect files with src/tgt suffixes.
+  dev_prefix = "must fill" # Dev prefix.
+  test_prefix = "must fill" # Test prefix.
+  vocab_prefix = "must fill" # Vocab prefix, expect files with src/tgt suffixes.
+  embedding_on_device = '/cpu:0'
   embed_prefix = None
-  '''
-  Pretrained embedding prefix, expect files with src/tgt suffixes.
-  The embedding files should be Glove formated txt files.
-  '''
+  # '''
+  # Pretrained embedding prefix, expect files with src/tgt suffixes.
+  # The embedding files should be Glove formated txt files.
+  # '''
+
   unk = '<unk>'
   sos = '<s>' # Start-of-sentence symbol.
   eos = '</s>' # End- of-sentence symbol.
@@ -103,10 +112,8 @@ class base_config(object):
   subword_option = '' # ?
 
   # Misc
-  use_char_encoder = False # ?
   num_gpus = 1
   gpu_list = "0" # "0,1,2,4"
-  log_device_placement = True # config of tf.Session(), print log
   metrics = 'bleu,rouge,accuracy'.split(',') # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
   steps_per_external_eval = None
   scope = None # model scope
@@ -125,7 +132,9 @@ class base_config(object):
   '''
 
   num_translations_per_input = 1 # Number of translations generated for each sentence, only for inference.
-  num_workers = 1 # Number of workers (inference only).
+  log_device_placement = True # config of tf.Session(), print log
+  allow_soft_placement = True
+  gpu_allow_growth = True
   num_inter_threads = 0 # ?number of inter_op_parallelism_threads.
   num_intra_threads = 0 # ?number of intra_op_parallelism_threads.
 
