@@ -22,6 +22,7 @@ PAD_CHAR_ID = 260  # <padding>
 
 DEFAULT_CHAR_MAXLEN = 50  # max number of chars for each word.
 
+__all__ = ['create_vocab_tables', 'new_or_pretrain_embed', 'tokens_to_bytes']
 
 def _load_vocab(vocab_file):
   vocab = []
@@ -116,8 +117,7 @@ def _load_embed_txt(log_file, embed_file):
         emb_size = len(vec)
   return emb_dict, emb_size
 
-
-def create_pretrained_emb_from_txt(
+def _create_pretrained_emb_from_txt(
     log_file, vocab_file, embed_file, num_trainable_tokens=3, dtype=tf.float32,
     scope=None):
   """Load pretrain embeding from embed_file, and return an embedding matrix.
@@ -153,9 +153,34 @@ def new_or_pretrain_embed(log_file, embed_name, vocab_file, embed_file,
                           vocab_size, embed_size, dtype):
   """Create a new or load an existing embedding matrix."""
   if vocab_file and embed_file:
-    embedding = create_pretrained_emb_from_txt(log_file, vocab_file, embed_file)
+    embedding = _create_pretrained_emb_from_txt(log_file, vocab_file, embed_file)
   else:
     with tf.device(PARAM.embedding_on_device):
       embedding = tf.get_variable(
           embed_name, [vocab_size, embed_size], dtype)
   return embedding
+
+def tokens_to_bytes(tokens):
+  """Given a sequence of strings, map to sequence of bytes.
+
+  Args:
+    tokens: A tf.string tensor
+
+  Returns:
+    A tensor of shape words.shape + [bytes_per_word] containing byte versions
+    of each word.
+  """
+  bytes_per_word = DEFAULT_CHAR_MAXLEN
+  with tf.device("/cpu:0"):
+    tf.assert_rank(tokens, 1)
+    shape = tf.shape(tokens)
+    tf.logging.info(tokens)
+    tokens_flat = tf.reshape(tokens, [-1])
+    as_bytes_flat = tf.map_fn(
+        fn=lambda x: _string_to_bytes(x, max_length=bytes_per_word),
+        elems=tokens_flat,
+        dtype=tf.int32,
+        back_prop=False)
+    tf.logging.info(as_bytes_flat)
+    as_bytes = tf.reshape(as_bytes_flat, [shape[0], bytes_per_word])
+  return as_bytes
