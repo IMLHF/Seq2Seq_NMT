@@ -1,4 +1,5 @@
 
+
 class base_config(object):
   # region network
   root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/copy_of_tensorflow_NMT'
@@ -15,9 +16,23 @@ class base_config(object):
   num_encoder_layers = None  # Encoder depth, equal to num_layers if None.
   num_decoder_layers = None  # Decoder depth, equal to num_layers if None.
 
+  model_type = 'vanilla'
+  '''
+  vanilla | standard_attention | gnmt | gnmt_current
+  vanilla: vanilla seq2seq model
+  standard: use top layer to compute attention.
+  gnmt: GNMT style of computing attention, use pervious bottom layer to compute attention.
+  gnmt_current: similar to gnmt, but use current bottom layer to compute attention.
+  '''
+
+  attention = 'luong'
+  '''
+  luong | scaled_luong | bahdanau | normed_bahdanau or set to '' for no attention
+  '''
+
   encoder_type = 'uni'
   '''
-  uni | bi | gnmt
+  uni | bi
   For bi, we build num_encoder_layers/2 bi-directional layers.
   For gnmt, we build 1 bi-directional layer, and (num_encoder_layers - 1) uni-directional layers.
   '''
@@ -25,19 +40,6 @@ class base_config(object):
   residual = False # ?
   time_major= False
   num_embeddings_partitions = 0 # ?
-  attention = ''
-  '''
-  luong | scaled_luong | bahdanau | normed_bahdanau or set to '' for no attention
-  '''
-
-  attention_architecture = 'standard'
-  '''
-  standard | gnmt | gnmt_v2 | gnmt_current.
-  standard: use top layer to compute attention.
-  gnmt: GNMT style of computing attention, use pervious bottom layer to compute attention.
-  gnmt_v2: similar to gnmt, but use current bottom layer to compute attention.
-  gnmt_current: same to gnmt_v2.
-  '''
 
   standard_output_attention = True # Only used in standard attention_architecture. Whether use attention as the cell output at each timestep.
   pass_hidden_state = True # Whether to pass encoder's hidden state to decoder when using an attention based model.
@@ -45,6 +47,7 @@ class base_config(object):
 
   # regiion optimizer
   optimizer = 'adam' # 'sgd' or 'adam'
+  loss = 'cross_entropy' #
   learning_rate = 0.001 # Adam: 0.001 or 0.0001; SGD: 1.0.
   warmup_steps = 0 # ?
   warmup_scheme = 't2t' # ?
@@ -79,10 +82,10 @@ class base_config(object):
   Pretrained embedding prefix, expect files with src/tgt suffixes.
   The embedding files should be Glove formated txt files.
   '''
-
+  unk = '<unk>'
   sos = '<s>' # Start-of-sentence symbol.
   eos = '</s>' # End- of-sentence symbol.
-  share_vocab = True # ?
+  share_vocab = True # use same vocab table for source and target
   chech_special_token = True # ?
   src_max_len = 50
   tgt_max_len = 50
@@ -103,13 +106,10 @@ class base_config(object):
   use_char_encoder = False # ?
   num_gpus = 1
   gpu_list = "0" # "0,1,2,4"
-  log_device_placement = False # ?
+  log_device_placement = True # config of tf.Session(), print log
   metrics = 'bleu,rouge,accuracy'.split(',') # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
   steps_per_external_eval = None
-  scope = None # ?
-  hparams_path = None # Path to standard hparams json file that overrides hparams values from FLAGS.
-  override_loaded_hparams = False # ?
-  random_seed = None
+  scope = None # model scope
   avg_ckpts = False # Average the last N checkpoints for external evaluation. N can be controlled by setting --num_keep_ckpts.
   language_model = False # ? True to train a language model, ignoring encoder
 
@@ -125,10 +125,19 @@ class base_config(object):
   '''
 
   num_translations_per_input = 1 # Number of translations generated for each sentence, only for inference.
-  jobid = 0 # Task id of the worker.
   num_workers = 1 # Number of workers (inference only).
   num_inter_threads = 0 # ?number of inter_op_parallelism_threads.
   num_intra_threads = 0 # ?number of intra_op_parallelism_threads.
+
+  verbose_print_hparams = True
+
+
+class TEST_C(base_config):
+  pass
+
+
+PARAM = TEST_C
+
 
 if __name__ == '__main__':
   pass
