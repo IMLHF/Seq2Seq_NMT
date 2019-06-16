@@ -1,8 +1,9 @@
-import sys
-import os
-from FLAGS import PARAM
-import tensorflow as tf
 from distutils import version
+import os
+import sys
+import tensorflow as tf
+
+from FLAGS import PARAM
 
 
 def ini_task(name):
@@ -35,6 +36,7 @@ def ini_task(name):
   save_hparams(hparams_file)
   return exp_dir, log_dir, summary_dir, ckpt_dir, log_file
 
+
 def printinfo(msg, f=None, new_line=True):
   if new_line:
     msg += '\n'
@@ -44,6 +46,7 @@ def printinfo(msg, f=None, new_line=True):
     f.writelines(msg)
     f.close()
   sys.stdout.flush()
+
 
 def save_hparams(f):
   f = open(f, 'a+')
@@ -63,6 +66,7 @@ def save_hparams(f):
   [f.write("%s:%s\n" % (key, self_dict[key])) for key in sorted(self_dict_keys)]
   f.write('--------------------------\n\n')
 
+
 def print_hparams(short=True):
   import FLAGS
   self_dict = FLAGS.PARAM.__dict__
@@ -79,6 +83,7 @@ def print_hparams(short=True):
   print('Short hparams:')
   [print("%s:%s" % (key, self_dict[key])) for key in sorted(self_dict_keys)]
   print('--------------------------\n')
+
 
 def get_session_config_proto():
   config_proto = tf.ConfigProto(
@@ -116,6 +121,16 @@ def get_initializer(init_op, seed=None, init_weight=None):
         seed=seed)
   else:
     raise ValueError("Unknown init_op %s" % init_op)
+
+
+def gradient_clip(gradients, max_gradient_norm):
+  """Clipping gradients of a model."""
+  clipped_gradients, gradient_norm = tf.clip_by_global_norm(
+      gradients, max_gradient_norm)
+  gradient_norm_summary = [tf.summary.scalar("grad_norm", gradient_norm)]
+  gradient_norm_summary.append(
+      tf.summary.scalar("clipped_gradient", tf.global_norm(clipped_gradients)))
+  return clipped_gradients, gradient_norm_summary, gradient_norm
 
 
 if __name__ == '__main__':
