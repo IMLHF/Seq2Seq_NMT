@@ -4,6 +4,7 @@ class base_config(object):
   root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   config_name = 'base'
   min_TF_version = "1.12.0"
+  num_keep_ckpts = 15
   '''
   # dir to store log, model and results files:
   $root_dir/exp/$config_name/log: logs(include tensorboard log)
@@ -15,7 +16,8 @@ class base_config(object):
 
   # dataset
   output_buffer_size = None
-  use_char_encoder = False # ?
+  reshuffle_each_iteration = True
+  num_parallel_calls = 8
 
   # region network
   num_units = 32
@@ -56,23 +58,10 @@ class base_config(object):
   optimizer = 'adam' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
   learning_rate = 0.001 # Adam: 0.001 or 0.0001; SGD: 1.0.
-  warmup_steps = 0 # ?
-  warmup_scheme = 't2t' # ?
-  lr_decay_scheme = ''
-  '''
-  luong234 | luong5 | luong10
-  How we decay learning rate. Options include:
-      luong234: after 2/3 num train steps, we start halving the learning rate
-        for 4 times before finishing.
-      luong5: after 1/2 num train steps, we start halving the learning rate
-        for 5 times before finishing.
-      luong10: after 1/2 num train steps, we start halving the learning rate
-        for 10 times before finishing.
-  '''
 
   epoch_step = 0
   num_train_steps = 12000
-  colocate_gradients_with_ops = True # ?
+  colocate_gradients_with_ops = True # params of tf.gradients() to parallel
   # endregion
 
   init_op = 'uniform' # 'uniform' or 'glorot_normal' or 'glorot_uniform'
@@ -95,7 +84,7 @@ class base_config(object):
   sos = '<s>' # Start-of-sentence symbol.
   eos = '</s>' # End- of-sentence symbol.
   share_vocab = True # use same vocab table for source and target
-  chech_special_token = True # ?
+  check_special_token = True # ?
   src_max_len = 50
   tgt_max_len = 50
   src_max_len_infer = None
@@ -107,7 +96,7 @@ class base_config(object):
   batch_size = 128
   steps_to_logging = 100
   max_train = 0 # Limit on the size of training data (0: no limit).
-  num_buckets = 5 # ?
+  num_buckets = 5 # Bucket sentence pairs by the length of their source sentence and target sentence.
   num_sampled_softmax = 0 # Use sampled_softmax_loss if > 0, else full softmax loss.
   subword_option = '' # ?
 
@@ -118,7 +107,6 @@ class base_config(object):
   steps_per_external_eval = None
   scope = None # model scope
   avg_ckpts = False # Average the last N checkpoints for external evaluation. N can be controlled by setting --num_keep_ckpts.
-  language_model = False # ? True to train a language model, ignoring encoder
 
   # inference
   infer_mode = 'greedy' # "greedy", "sample", "beam_search"
@@ -139,6 +127,27 @@ class base_config(object):
   num_intra_threads = 0 # ?number of intra_op_parallelism_threads.
 
   verbose_print_hparams = True
+
+  #################
+  # Extra
+  #################
+  language_model = False # True to train a language model, ignoring encoder
+  warmup_steps = 0 # steps lr warmup
+  warmup_scheme = 't2t'
+  lr_decay_scheme = None
+  '''
+  "luong234" | "luong5" | "luong10" | None
+  How we decay learning rate. Options include:
+      luong234: after 2/3 num train steps, we start halving the learning rate
+        for 4 times before finishing.
+      luong5: after 1/2 num train steps, we start halving the learning rate
+        for 5 times before finishing.
+      luong10: after 1/2 num train steps, we start halving the learning rate
+        for 10 times before finishing.
+      None: no decay.
+  '''
+
+  use_char_encode = False # ?
 
 
 class TEST_C(base_config):
