@@ -1,12 +1,12 @@
-import collections
-import tensorflow as tf
-import os
-from utils import vocab_utils
 import codecs
+import collections
+import os
+import tensorflow as tf
+
 from FLAGS import PARAM
+from utils import vocab_utils
 
 __all__ = ['load_data', 'get_batch_inputs_form_dataset']
-
 
 class BatchInputs(
     collections.namedtuple("BatchInputs",
