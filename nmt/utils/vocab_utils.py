@@ -1,11 +1,12 @@
 
-from FLAGS import PARAM
-from tensorflow.python.ops import lookup_ops
-import os
 import codecs
-import tensorflow as tf
-from utils import misc_utils
 import numpy as np
+import os
+from tensorflow.python.ops import lookup_ops
+import tensorflow as tf
+
+from FLAGS import PARAM
+from utils import misc_utils
 
 UNK = PARAM.unk
 SOS = PARAM.sos
@@ -22,7 +23,7 @@ PAD_CHAR_ID = 260  # <padding>
 
 DEFAULT_CHAR_MAXLEN = 50  # max number of chars for each word.
 
-__all__ = ['create_vocab_tables', 'new_or_pretrain_embed', 'tokens_to_bytes']
+# __all__ = ['create_vocab_tables', 'new_or_pretrain_embed', 'tokens_to_bytes']
 
 def _load_vocab(vocab_file):
   vocab = []
@@ -64,6 +65,13 @@ def _check_vocab(log_file, vocab_file, check_special_token=True):
   return vocab_size
 
 def create_vocab_tables(log_file):
+  '''
+  Returns:
+    src_vocab_table : word -> id
+    tgt_vocab_table : word -> id
+    src_vocab_size:
+    tgt_vocab_size:
+  '''
   src_vocab_file = "%s.%s" % (PARAM.vocab_prefix,PARAM.src)
   tgt_vocab_file = "%s.%s" % (PARAM.vocab_prefix,PARAM.tgt)
   src_vocab_size = _check_vocab(log_file, src_vocab_file)
@@ -150,14 +158,14 @@ def _create_pretrained_emb_from_txt(
   return tf.concat([emb_mat_var, emb_mat_const], 0)
 
 def new_or_pretrain_embed(log_file, embed_name, vocab_file, embed_file,
-                          vocab_size, embed_size, dtype):
+                          vocab_size, embed_size, _dtype):
   """Create a new or load an existing embedding matrix."""
   if vocab_file and embed_file:
     embedding = _create_pretrained_emb_from_txt(log_file, vocab_file, embed_file)
   else:
     with tf.device(PARAM.embedding_on_device):
       embedding = tf.get_variable(
-          embed_name, [vocab_size, embed_size], dtype)
+          name=embed_name, shape=[vocab_size, embed_size], dtype=_dtype)
   return embedding
 
 def _string_to_bytes(text, max_length):
