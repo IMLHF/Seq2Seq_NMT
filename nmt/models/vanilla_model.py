@@ -265,5 +265,8 @@ class BaseModel(object):
       self.tgt_vocab_table.lookup(tf.constant(PARAM.sos)), tf.int32)
     tgt_eos_di = tf.cast(
       self.tgt_vocab_table.lookup(tf.constant(PARAM.eos)), tf.int32)
+    batch_inputs = self.batch_inputs
+
+    maximum_iterations
 
 
