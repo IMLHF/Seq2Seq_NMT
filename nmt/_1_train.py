@@ -1,4 +1,4 @@
-from models import model_helper
+from models import model_builder
 import os
 import sys
 import tensorflow as tf
@@ -15,19 +15,18 @@ def main(exp_dir,
          summary_dir,
          ckpt_dir,
          log_file):  # train
-  # model_creator = model_helper.get_model_creator()
   # gmd : graph, model, dataset
-  # train_gmd = model_helper.build_train_model(log_file, model_creator, PARAM.scope)
-  # eval_gmd = model_helper.build_eval_model(log_file, model_creator, PARAM.scope)
+  train_gmd = model_builder.build_train_model(log_file, PARAM.scope)
+  eval_gmd = model_builder.build_eval_model(log_file, PARAM.scope)
 
   # Preload data for sample decoding.
-  # dev_src_file = "%s.%s" % (PARAM.dev_prefix, PARAM.src)
-  # dev_tgt_file = "%s.%s" % (PARAM.dev_prefix, PARAM.tgt)
-  # sample_src_data = dataset_utils.load_data(dev_src_file)
-  # sample_tgt_data = dataset_utils.load_data(dev_tgt_file)
+  dev_src_file = "%s.%s" % (PARAM.dev_prefix, PARAM.src)
+  dev_tgt_file = "%s.%s" % (PARAM.dev_prefix, PARAM.tgt)
+  sample_src_data = dataset_utils.load_data(dev_src_file)
+  sample_tgt_data = dataset_utils.load_data(dev_tgt_file)
 
   # TensorFlow Model
-  # config_proto = misc_utils.get_session_config_proto()
+  config_proto = misc_utils.get_session_config_proto()
 
   pass
 
