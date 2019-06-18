@@ -10,9 +10,9 @@ __all__ = ['load_data', 'get_batch_inputs_form_dataset']
 
 class BatchInputs(
     collections.namedtuple("BatchInputs",
-                           ("initializer", "source", "target_input",
-                            "target_output", "source_sequence_length",
-                            "target_sequence_length"))):
+                           ("initializer",
+                            "source_id_seq", "target_in_id_seq", "target_out_id_seq",
+                            "source_seq_lengths", "target_seq_lengths"))):
   pass
 
 def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_sos_id, tgt_eos_id):
@@ -66,6 +66,10 @@ def get_batch_inputs_form_dataset(log_file,
                                   target_textline_file,
                                   source_vocab_table,
                                   target_vocab_table):
+
+  '''
+  source_vocab_table: word->id
+  '''
   src_dataset = tf.data.TextLineDataset(source_textline_file)
   tgt_dataset = tf.data.TextLineDataset(target_textline_file)
 
@@ -152,10 +156,10 @@ def get_batch_inputs_form_dataset(log_file,
   return BatchInputs(
       initializer=batched_iter.initializer,
       source_id_seq=src_ids,
-      target_input_id_seq=tgt_input_ids,
-      target_output_id_seq=tgt_output_ids,
-      source_sequence_lengths=src_seq_len,
-      target_sequence_lengths=tgt_seq_len)
+      target_in_id_seq=tgt_input_ids,
+      target_out_id_seq=tgt_output_ids,
+      source_seq_lengths=src_seq_len,
+      target_seq_lengths=tgt_seq_len)
 
 def load_data(inference_input_file, hparams=None):
   """Load inference data."""
