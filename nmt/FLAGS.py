@@ -1,6 +1,10 @@
 
+class static_key(object):
+  MODEL_TRAIN_KEY = 'train'
+  MODEL_INFER_KEY = 'infer'
+  MODEL_VALIDATE_KEY = 'val'
 
-class base_config(object):
+class base_config(static_key):
   root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   config_name = 'base'
   min_TF_version = "1.12.0"
@@ -20,10 +24,12 @@ class base_config(object):
   num_parallel_calls = 8
 
   # region network
-  num_units = 32
-  num_layers = 2
-  num_encoder_layers = None  # Encoder depth, equal to num_layers if None.
-  num_decoder_layers = None  # Decoder depth, equal to num_layers if None.
+  encoder_num_units = 32
+  decoder_num_units = 32
+  encoder_num_layers = 2  # Encoder depth, equal to num_layers if None.
+  decoder_num_layers = 2  # Decoder depth, equal to num_layers if None.
+  encoder_layer_start_residual = None
+  decoder_layer_start_residual = None
 
   model_type = 'vanilla'
   '''
@@ -89,9 +95,13 @@ class base_config(object):
   tgt_max_len = 50
   src_max_len_infer = None
   tgt_max_len_infer = None
-  unit_type = 'lstm' # lstm | gru | layer_norm_lstm | nas
-  forget_bias = 1.0
-  drop_rate = 0.2
+  tgt_max_len_infer_factor = 2.0 # tgt_max_len_infer = src_seq_max_len*tgt_max_len_infer_factor
+  encoder_unit_type = 'lstm'
+  decoder_unit_type = 'lstm' # lstm | gru | layer_norm_lstm | nas
+  encoder_forget_bias = 1.0
+  decoder_forget_bias = 1.0
+  encoder_drop_rate = 0.2
+  decoder_drop_rate = 0.2
   max_gradient_norm = 5.0 # gradient clip
   batch_size = 128
   steps_to_logging = 100
@@ -102,7 +112,6 @@ class base_config(object):
 
   # Misc
   num_gpus = 1
-  gpu_list = "0" # "0,1,2,4"
   metrics = 'bleu,rouge,accuracy'.split(',') # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
   steps_per_external_eval = None
   scope = None # model scope
