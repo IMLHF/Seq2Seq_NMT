@@ -54,10 +54,10 @@ def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_sos_id, tgt_e
       return tf.to_int64(tf.minimum(PARAM.num_buckets, bucket_id))
 
   def reduce_func(unused_key, windowed_data):
-    return _batching_func_with_labels(windowed_data, src_eos_id, tgt_sos_id, tgt_eos_id)
+    return _batching_func_with_labels(windowed_data, batch_size, src_eos_id, tgt_sos_id, tgt_eos_id)
 
   batched_dataset = dataset.apply(
-      tf.contrib.data.group_by_window(
+      tf.data.experimental.group_by_window(
           key_func=key_func, reduce_func=reduce_func, window_size=batch_size))
   return batched_dataset
 
