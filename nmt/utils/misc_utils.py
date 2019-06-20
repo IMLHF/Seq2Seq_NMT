@@ -2,6 +2,7 @@ from distutils import version
 import os
 import sys
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 
 from FLAGS import PARAM
 
@@ -37,10 +38,11 @@ def ini_task(name):
   return exp_dir, log_dir, summary_dir, ckpt_dir, log_file
 
 
-def printinfo(msg, f=None, new_line=True):
+def printinfo(msg, f=None, new_line=True, noPrt=False):
   if new_line:
     msg += '\n'
-  print(msg, end='')
+  if not noPrt:
+    print(msg, end='')
   if f:
     f = open(f,'a+')
     f.writelines(msg)
@@ -86,9 +88,9 @@ def print_hparams(short=True):
 
 
 def get_session_config_proto():
-  config_proto = tf.ConfigProto(
-    log_device_placement=PARAM.log_device_placement,
-    allow_soft_placement=PARAM.allow_soft_placement)
+  config_proto = tf.ConfigProto()
+  config_proto.log_device_placement = PARAM.log_device_placement
+  config_proto.allow_soft_placement = PARAM.allow_soft_placement
   config_proto.gpu_options.allow_growth = PARAM.gpu_allow_growth
 
   # CPU threads options
@@ -96,6 +98,7 @@ def get_session_config_proto():
     config_proto.intra_op_parallelism_threads = PARAM.num_intra_threads
   if PARAM.num_inter_threads>0:
     config_proto.inter_op_parallelism_threads = PARAM.num_inter_threads
+  return config_proto
 
 
 def check_tensorflow_version():
@@ -131,6 +134,16 @@ def gradient_clip(gradients, max_gradient_norm):
   gradient_norm_summary.append(
       tf.summary.scalar("clipped_gradient", tf.global_norm(clipped_gradients)))
   return clipped_gradients, gradient_norm_summary, gradient_norm
+
+
+def show_variables(vars_):
+    slim.model_analyzer.analyze_vars(vars_, print_info=True)
+    sys.stdout.flush()
+
+
+def show_all_variables():
+    model_vars = tf.trainable_variables()
+    show_variables(model_vars)
 
 
 if __name__ == '__main__':
