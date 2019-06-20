@@ -33,18 +33,16 @@ class BaseModel(object):
                log_file,
                mode,
                source_id_seq,
-               target_in_id_seq,
-               target_out_id_seq,
                source_seq_lengths,
-               target_seq_lengths,
-               source_vocab_table,
-               target_vocab_table,
+               tgt_vocab_table,
                src_vocab_size,
                tgt_vocab_size,
-               scope):
+               target_in_id_seq=None,
+               target_out_id_seq=None,
+               target_seq_lengths=None):
     '''
     Args:
-      mode: TRAIN | EVAL | INFER
+      mode: PARAM.MODEL_TRAIN_KEY | PARAM.MODEL_VALIDATION_KEY | PARAM.MODEL_INFER_KEY
       iterator: Dataset Iterator that feeds data.
       source_vocab_table: Lookup table mapping source words to ids.
       target_vocab_table: Lookup table mapping target words to ids.
@@ -59,15 +57,15 @@ class BaseModel(object):
     self.mode = mode
     self.src_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.src)
     self.tgt_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.tgt)
-    self.src_vocab_table = source_vocab_table
-    self.tgt_vocab_table = target_vocab_table
+    # self.src_vocab_table = source_vocab_table
+    self.tgt_vocab_table = tgt_vocab_table
     self.src_vocab_size = src_vocab_size
     self.tgt_vocab_size = tgt_vocab_size
     self.batch_size = tf.size(self.source_seq_lengths)
     self.dtype=tf.float32
     self.single_cell_fn = None
-    self.num_encoder_layers = PARAM.num_encoder_layers or PARAM.num_layers
-    self.num_decoder_layers = PARAM.num_decoder_layers or PARAM.num_layers
+    self.num_encoder_layers = PARAM.encoder_num_layers
+    self.num_decoder_layers = PARAM.decoder_num_layers
     assert self.num_encoder_layers and self.num_decoder_layers, 'layers num error'
 
     if PARAM.use_char_encode:
@@ -83,8 +81,8 @@ class BaseModel(object):
     with tf.variable_scope('embeddings',dtype=self.dtype):
       src_embed_size = PARAM.encoder_num_units
       tgt_embed_size = PARAM.decoder_num_units
-      src_embed_file = "%s.%s" % (PARAM.embed_prefix, PARAM.src) if not PARAM.embed_prefix else None
-      tgt_embed_file = "%s.%s" % (PARAM.embed_prefix, PARAM.tgt) if not PARAM.embed_prefix else None
+      src_embed_file = "%s.%s" % (PARAM.embed_prefix, PARAM.src) if PARAM.embed_prefix else None
+      tgt_embed_file = "%s.%s" % (PARAM.embed_prefix, PARAM.tgt) if PARAM.embed_prefix else None
       if PARAM.share_vocab:
         assert self.src_vocab_size == self.tgt_vocab_size, "" + \
             "Share embedding but different src/tgt vocab sizes"
@@ -126,7 +124,7 @@ class BaseModel(object):
                                                                      self.dtype)
 
     # train graph
-    with tf.variable_scope(scope or "build_network"):
+    with tf.variable_scope("build_network"):
       with tf.variable_scope("decoder/output_projection"):
         # Projection
         self.output_layer = tf.layers.Dense(
@@ -145,87 +143,91 @@ class BaseModel(object):
         )  # build_encoder
 
       # decoder
-      self.logits, self.decoder_cell_outputs, self.sample_id, self.final_context_state = (
+      self.logits, self.sample_id, _, rnn_outputs_for_sampled_sotmax = (
         self._build_decoder(encoder_outputs, encoder_final_state)
-      )  # build_decoder
+      )  # build_decoder, encoder_outputs is not used (for attention)
 
-      # infer end
-      if self.mode == PARAM.MODEL_INFER_KEY:
-        self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
-            self.tgt_vocab_file, default_value=vocab_utils.UNK)
-        self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
-        return
+    # self.saver = tf.train.Saver(tf.global_variables(),
+    self.saver = tf.train.Saver(tf.trainable_variables(),
+                                max_to_keep=PARAM.num_keep_ckpts)
 
-      # loss
-      crossent = self._softmax_cross_entropy_loss(self.logits,self.decoder_cell_outputs,self.target_out_id_seq)
-      self.loss = loss_utils.cross_entropy_loss(self.logits,
-                                                crossent,
-                                                self.decoder_cell_outputs,
-                                                self.target_out_id_seq,
-                                                self.target_seq_lengths,
-                                                self.batch_size)
+    # infer end
+    if self.mode == PARAM.MODEL_INFER_KEY:
+      self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
+          self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
+      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
+      return
 
-      # eval end
-      if self.mode == PARAM.MODEL_VALIDATE_KEY:
-        return
+    # loss TODO
+    crossent = self._softmax_cross_entropy_loss(
+        self.logits, rnn_outputs_for_sampled_sotmax, self.target_out_id_seq)
+    self.loss = loss_utils.cross_entropy_loss(self.logits,
+                                              crossent,
+                                              rnn_outputs_for_sampled_sotmax,
+                                              self.target_out_id_seq,
+                                              self.target_seq_lengths,
+                                              self.batch_size)
 
-      # Count the number of predicted words for compute ppl.
-      self.word_count = tf.reduce_sum(
-        self.source_seq_lengths+self.target_seq_lengths)
-      self.predict_count = tf.reduce_sum(
-          self.iterator.target_sequence_lengths)
+    # val end
+    if self.mode == PARAM.MODEL_VALIDATE_KEY:
+      return
 
-      # region apply gradient
-      # Gradients and SGD update operation for training the model.
-      # Arrange for the embedding vars to appear at the beginning.
-      self.learning_rate = tf.constant(PARAM.learning_rate)
-      #TODO set learning_rate -> variable
-      # warm-up # not use
-      # self.learning_rate = self._get_learning_rate_warmup(hparams)
-      # decay # not use
-      # self.learning_rate = self._get_learning_rate_decay(hparams)
+    # Count the number of predicted words for compute ppl.
+    self.word_count = tf.reduce_sum(
+      self.source_seq_lengths+self.target_seq_lengths)
+    self.predict_count = tf.reduce_sum(self.target_seq_lengths)
 
-      # Optimizer
-      if PARAM.optimizer == "sgd":
-        opt = tf.train.GradientDescentOptimizer(self.learning_rate)
-      elif PARAM.optimizer == "adam":
-        opt = tf.train.AdamOptimizer(self.learning_rate)
-      else:
-        raise ValueError("Unknown optimizer type %s" % PARAM.optimizer)
-      # Gradients
-      params = tf.trainable_variables()
-      gradients = tf.gradients(
-          self.train_loss,
-          params,
-          colocate_gradients_with_ops=PARAM.colocate_gradients_with_ops)
-      clipped_grads, grad_norm_summary, grad_norm = misc_utils.gradient_clip(
-          gradients, max_gradient_norm=PARAM.max_gradient_norm)
-      self.grad_norm_summary = grad_norm_summary
-      self.grad_norm = grad_norm
+    # region apply gradient
+    # Gradients and SGD update operation for training the model.
+    # Arrange for the embedding vars to appear at the beginning.
+    self.learning_rate = tf.constant(PARAM.learning_rate)
+    #TODO set learning_rate -> variable
+    # warm-up # not use
+    # self.learning_rate = self._get_learning_rate_warmup(hparams)
+    # decay # not use
+    # self.learning_rate = self._get_learning_rate_decay(hparams)
 
-      self.update = opt.apply_gradients(zip(clipped_grads, params))
-      # endregion
+    # Optimizer
+    if PARAM.optimizer == "sgd":
+      opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+    elif PARAM.optimizer == "adam":
+      opt = tf.train.AdamOptimizer(self.learning_rate)
+    else:
+      raise ValueError("Unknown optimizer type %s" % PARAM.optimizer)
+    # Gradients
+    params = tf.trainable_variables()
+    gradients = tf.gradients(
+        self.loss,
+        params,
+        colocate_gradients_with_ops=PARAM.colocate_gradients_with_ops)
+    clipped_grads, grad_norm_summary, grad_norm = misc_utils.gradient_clip(
+        gradients, max_gradient_norm=PARAM.max_gradient_norm)
+    self.grad_norm_summary = grad_norm_summary
+    self.grad_norm = grad_norm
 
-      # Summary
-      self.train_summary = tf.summary.merge(
-          [tf.summary.scalar("lr", self.learning_rate),
-           tf.summary.scalar("train_loss", self.train_loss)] +
-          self.grad_norm_summary)
-      # self.saver = tf.train.Saver(tf.global_variables(),
-      self.saver = tf.train.Saver(tf.trainable_variables(),
-                                  max_to_keep=PARAM.num_keep_ckpts)
+    self.train_op = opt.apply_gradients(zip(clipped_grads, params))
+    # endregion
+
+    # Summary
+    self.train_summary = tf.summary.merge(
+        [tf.summary.scalar("lr", self.learning_rate),
+         tf.summary.scalar("train_loss", self.loss)] +
+        self.grad_norm_summary)
 
 
   def _softmax_cross_entropy_loss(
-    self, logits, decoder_cell_outputs, labels):
+    self, logits, rnn_outputs_for_sampled_sotmax, labels):
     """Compute softmax loss or sampled softmax loss."""
+    if PARAM.time_major:
+      labels = tf.transpose(labels)
     if PARAM.num_sampled_softmax > 0:
 
-      is_sequence = (decoder_cell_outputs.shape.ndims == 3)
+      is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
 
       if is_sequence:
-        labels = tf.reshape(labels, [-1, 1])
-        inputs = tf.reshape(decoder_cell_outputs, [-1, PARAM.decoder_num_units])
+        labels = tf.reshape(labels, [-1, 1]) # [time*batch, 1] if time_major else [batch*time, 1]
+        inputs = tf.reshape(rnn_outputs_for_sampled_sotmax,
+                            [-1, PARAM.decoder_num_units])  # [time*batch, depth] if time_major else [batch*time, depth]
 
       crossent = tf.nn.sampled_softmax_loss(
           weights=tf.transpose(self.output_layer.kernel),
@@ -243,12 +245,14 @@ class BaseModel(object):
           crossent = tf.reshape(crossent, [self.batch_size, -1])
 
     else:
+      # print(labels.get_shape().as_list(),logits.get_shape().as_list())
       crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
           labels=labels, logits=logits)
+      # print(crossent.get_shape().as_list())
     return crossent
 
   @abc.abstractmethod
-  def _build_encoder(self):
+  def _build_encoder(self, seq, seq_lengths):
     '''
     Returns:
       a tuple: (encoder_outputs, encoder_final_state)
@@ -259,9 +263,13 @@ class BaseModel(object):
         "_build_encoder not implement, code: dkfkasd0395jfa0295jf")
 
   @abc.abstractmethod
-  def _build_decode(self,
-                    encoder_outputs,
-                    encoder_final_state):
+  def _build_decoder(self,
+                     encoder_outputs,
+                     encoder_final_state):
+    '''
+    Returns:
+      A tuple: (final_logits, decoder_final_state)
+    '''
     import traceback
     traceback.print_exc()
     raise NotImplementedError(
@@ -281,8 +289,9 @@ class Model(BaseModel):
       encoder_inputs = tf.nn.embedding_lookup(self.embedding_encoder,
                                               seq)
       if PARAM.encoder_type == "uni":
-        misc_utils.printinfo("  num_layers = %d, num_residual_layers=%d" %
-                             (PARAM.num_layers, PARAM.num_residual_layers), self.log_file)
+        misc_utils.printinfo("  encoder_num_layers = %d, encoder_layer_start_residual=%d" %
+                             (PARAM.encoder_num_layers,
+                              PARAM.encoder_layer_start_residual), self.log_file)
         multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
             num_units=PARAM.encoder_num_units,
@@ -301,6 +310,7 @@ class Model(BaseModel):
             time_major=PARAM.time_major,
             swap_memory=True
         )
+        # self._debug=encoder_state[0][0].get_shape().as_list()
       elif PARAM.encoder_type == "bi":
         fw_multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
@@ -347,8 +357,8 @@ class Model(BaseModel):
     self.encoder_state_list = [encoder_outputs]
     return encoder_outputs, encoder_state
 
-  def _build_encoder_cell(
-          self, encoder_outputs, encoder_final_state, source_seq_length):
+  def _build_decoder_cell(
+          self, encoder_final_state):
     multi_cell = model_helper.multiRNNCell(
         unit_type=PARAM.decoder_unit_type,
         num_units=PARAM.decoder_num_units,
@@ -370,13 +380,12 @@ class Model(BaseModel):
       decoder_init_state = encoder_final_state
     return multi_cell, decoder_init_state
 
-
   def _build_decoder(self, encoder_outputs, encoder_final_state):
     '''
     Args:
       a tuple: (encoder_outputs, encoder_final_state)
     Returns:
-      A tuple: (final_logits, decoder_final_state)
+      A tuple: (rnn_noproj_outputs, logits, sample_id, decoder_final_state)
         logits dim: [time, batch_size, vocab_size] when time_major=True
     '''
     tgt_sos_id = tf.cast(
@@ -397,9 +406,7 @@ class Model(BaseModel):
 
     with tf.variable_scope("decoder") as decoder_scope:
       # region decoder
-      cell, decoder_init_state = self._build_decoder_cell(encoder_outputs,  #
-                                                          encoder_final_state,
-                                                          self.source_seq_lengths)
+      cell, decoder_init_state = self._build_decoder_cell(encoder_final_state)
       ## inference
       if self.mode == PARAM.MODEL_INFER_KEY:
         decoder = None
@@ -429,7 +436,7 @@ class Model(BaseModel):
               softmax_temperature=sampling_temperature,
               seed=self.random_seed)
         elif PARAM.infer_mode == "greedy":
-          helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+          helper = contrib.seq2seq.GreedyEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token)
         else:
           raise ValueError("Unknown infer_mode '%s'", PARAM.infer_mode)
@@ -439,30 +446,31 @@ class Model(BaseModel):
               cell,
               helper,
               decoder_init_state,
-              output_layer=self.output_layer  # applied per timestep
+              output_layer=self.output_layer  # outside outputlayer for flexible
           )
 
         # Dynamic decoding
-        decoder_outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
+        decoder_outputs, final_context_state, _ = contrib.seq2seq.dynamic_decode(
             decoder,
-            maximum_iterations=max_rnn_iterations,
-            output_time_major=self.time_major,
+            maximum_iterations=max_rnn_iterations if self.mode == PARAM.MODEL_INFER_KEY else None,
+            output_time_major=PARAM.time_major,
             swap_memory=True,
-            scope=decoder_scope)
-
-        decoder_cell_outputs = None
-        decoder_final_state = final_context_state
+            scope=decoder_scope
+        )
+        rnn_outputs_for_sampled_sotmax = tf.no_op()
         if PARAM.infer_mode == "beam_search":
-          logits = tf.no_op()
+          logits = tf.no_ops() # # beam_search decoder have no logits (just scores)
           sample_id = decoder_outputs.predicted_ids
         else:
           logits = decoder_outputs.rnn_output
-          sample_id = decoder.sample_id
-
-        # return logits, decoder_cell_outputs, sample_id, decoder_final_state
+          sample_id = decoder_outputs.sample_id
 
       ## train or val
       else:
+        '''
+        decoder_inputs: target_in_id_seq
+        decoder_init_state: encoder_final_state
+        '''
         decoder_inputs = tf.nn.embedding_lookup(self.embedding_decoder, # ids->embeding
                                                 self.target_in_id_seq) # [batch, time, embedding_vec]
         if PARAM.time_major:
@@ -472,27 +480,29 @@ class Model(BaseModel):
                                                         self.target_seq_lengths,
                                                         time_major=PARAM.time_major)
 
-        basic_decoder = contrib.seq2seq.BasicDecoder(cell,decoder_helper,decoder_init_state)
+        decoder = contrib.seq2seq.BasicDecoder(
+            cell,
+            decoder_helper,
+            decoder_init_state,
+            # output_layer=self.output_layer # outside outputlayer for sampled_softmax
+        )
 
-        decoder_outputs, final_context_state, decoder_final_seq_lengths = contrib.seq2seq.dynamic_decode(
-            basic_decoder,
+        # Dynamic decoding
+        decoder_outputs, final_context_state, _ = contrib.seq2seq.dynamic_decode(
+            decoder,
             output_time_major=PARAM.time_major,
             swap_memory=True,
-            scope=decoder_scope)
+            scope=decoder_scope
+        )
 
+        rnn_outputs_for_sampled_sotmax = decoder_outputs.rnn_output
         logits = self.output_layer(decoder_outputs.rnn_output)
-        sample_id = decoder_outputs.sample_id
-        if PARAM.num_sampled_softmax > 0:
-          logits = tf.no_op()
-          decoder_cell_outputs = decoder_outputs.rnn_output
+        sample_id = tf.argmax(logits, axis=-1, name='get_sample_id', output_type=tf.int32)
+        sample_id2 = decoder_outputs.sample_id # TODO remove
+        with tf.control_dependencies([tf.assert_equal(sample_id,sample_id2)]):
+          sample_id = tf.identity(sample_id2)
 
-    return logits, decoder_cell_outputs, sample_id, decoder_final_state
-
-
-
-
-
-
-
-
-
+      # self._debug=logits.get_shape().as_list()
+      # print(self._debug)
+      decoder_final_state = final_context_state
+    return logits, sample_id, decoder_final_state, rnn_outputs_for_sampled_sotmax
