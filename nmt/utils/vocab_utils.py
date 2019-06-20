@@ -64,7 +64,7 @@ def _check_vocab(log_file, vocab_file, check_special_token=True):
   vocab_size = len(vocab)
   return vocab_size
 
-def create_vocab_tables(log_file):
+def create_vocab_word2id_tables(log_file):
   '''
   Returns:
     src_vocab_table : word -> id
