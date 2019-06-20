@@ -28,8 +28,8 @@ class base_config(static_key):
   decoder_num_units = 32
   encoder_num_layers = 2  # Encoder depth, equal to num_layers if None.
   decoder_num_layers = 2  # Decoder depth, equal to num_layers if None.
-  encoder_layer_start_residual = None
-  decoder_layer_start_residual = None
+  encoder_layer_start_residual = 3
+  decoder_layer_start_residual = 3
 
   model_type = 'vanilla'
   '''
@@ -73,12 +73,12 @@ class base_config(static_key):
   init_op = 'uniform' # 'uniform' or 'glorot_normal' or 'glorot_uniform'
   init_weight = 0.1 # for uniform init_op, initialize weights between [-this, this].
 
-  src = "must fill" # Source suffix, e.g., en. Must be assigned.
-  tgt = "must fill" # Target suffix.
-  train_prefix = "must fill" # Train prefix, expect files with src/tgt suffixes.
-  dev_prefix = "must fill" # Dev prefix.
-  test_prefix = "must fill" # Test prefix.
-  vocab_prefix = "must fill" # Vocab prefix, expect files with src/tgt suffixes.
+  src = "vi" # Source suffix, e.g., en. Must be assigned.
+  tgt = "en" # Target suffix.
+  train_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/train" # Train prefix, expect files with src/tgt suffixes.
+  val_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/tst2012" # Dev prefix.
+  test_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/tst2013" # Test prefix.
+  vocab_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/vocab" # Vocab prefix, expect files with src/tgt suffixes.
   embedding_on_device = '/cpu:0'
   embed_prefix = None
   # '''
@@ -89,7 +89,7 @@ class base_config(static_key):
   unk = '<unk>'
   sos = '<s>' # Start-of-sentence symbol.
   eos = '</s>' # End- of-sentence symbol.
-  share_vocab = True # use same vocab table for source and target
+  share_vocab = False # use same vocab table for source and target
   check_special_token = True # ?
   src_max_len = 50
   tgt_max_len = 50
@@ -129,13 +129,16 @@ class base_config(static_key):
   '''
 
   num_translations_per_input = 1 # Number of translations generated for each sentence, only for inference.
-  log_device_placement = True # config of tf.Session(), print log
+  log_device_placement = False # config of tf.Session(), print log
   allow_soft_placement = True
   gpu_allow_growth = True
   num_inter_threads = 0 # ?number of inter_op_parallelism_threads.
   num_intra_threads = 0 # ?number of intra_op_parallelism_threads.
 
   verbose_print_hparams = True
+
+  start_epoch = 1
+  max_epoch = 50
 
   #################
   # Extra
