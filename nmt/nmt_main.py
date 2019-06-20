@@ -7,7 +7,7 @@ import _1_train
 import _2_test
 
 
-def main():
+def main(_):
   # num_worker = PARAM.num_workers
   exp_dir, log_dir, summary_dir, ckpt_dir, log_file = misc_utils.ini_task('nmt_main')
 
