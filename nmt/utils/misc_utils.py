@@ -4,7 +4,7 @@ import sys
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
-from FLAGS import PARAM
+from ..FLAGS import PARAM
 
 
 def ini_task(name):
@@ -52,7 +52,7 @@ def printinfo(msg, f=None, new_line=True, noPrt=False):
 
 def save_hparams(f):
   f = open(f, 'a+')
-  import FLAGS
+  from .. import FLAGS
   self_dict = FLAGS.PARAM.__dict__
   self_dict_keys = self_dict.keys()
   f.writelines('FLAGS.PARAM:\n')
@@ -70,7 +70,7 @@ def save_hparams(f):
 
 
 def print_hparams(short=True):
-  import FLAGS
+  from .. import FLAGS
   self_dict = FLAGS.PARAM.__dict__
   self_dict_keys = self_dict.keys()
   if not short:

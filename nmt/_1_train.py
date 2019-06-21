@@ -4,10 +4,10 @@ import sys
 import tensorflow as tf
 import time
 
-from FLAGS import PARAM
-from models import model_builder
-from utils import dataset_utils
-from utils import misc_utils
+from .FLAGS import PARAM
+from .models import model_builder
+from .utils import dataset_utils
+from .utils import misc_utils
 
 
 class EvalOneEpochOutputs(

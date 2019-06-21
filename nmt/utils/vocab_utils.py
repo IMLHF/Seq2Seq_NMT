@@ -5,8 +5,8 @@ import os
 from tensorflow.python.ops import lookup_ops
 import tensorflow as tf
 
-from FLAGS import PARAM
-from utils import misc_utils
+from ..FLAGS import PARAM
+from ..utils import misc_utils
 
 UNK = PARAM.unk
 SOS = PARAM.sos
@@ -55,7 +55,7 @@ def _check_vocab(log_file, vocab_file, check_special_token=True):
         vocab_size += 3
         os.rename(vocab_file, vocab_file+'.bak')
         with codecs.getwriter("utf-8")(
-            tf.gfile.GFile(vocab_file, "wb")) as f:
+                tf.gfile.GFile(vocab_file, "wb")) as f:
           for word in vocab:
             f.write("%s\n" % word)
   else:
@@ -126,8 +126,8 @@ def _load_embed_txt(log_file, embed_file):
   return emb_dict, emb_size
 
 def _create_pretrained_emb_from_txt(
-    log_file, vocab_file, embed_file, num_trainable_tokens=3, dtype=tf.float32,
-    scope=None):
+        log_file, vocab_file, embed_file, num_trainable_tokens=3, dtype=tf.float32,
+        scope=None):
   """Load pretrain embeding from embed_file, and return an embedding matrix.
 
   Args:

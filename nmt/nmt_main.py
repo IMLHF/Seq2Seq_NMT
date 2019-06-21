@@ -1,10 +1,11 @@
-from FLAGS import PARAM
 import tensorflow as tf
 import sys
-from utils import misc_utils
 import os
-import _1_train
-import _2_test
+
+from .utils import misc_utils
+from .FLAGS import PARAM
+from . import _1_train
+from . import _2_test
 
 
 def main(_):

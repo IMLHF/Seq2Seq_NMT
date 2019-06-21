@@ -1,5 +1,5 @@
 import tensorflow as tf
-from FLAGS import PARAM
+from ..FLAGS import PARAM
 
 
 def cross_entropy_loss(logits, crossent, decoder_cell_outputs, target_output, target_sequence_length, batch_size):

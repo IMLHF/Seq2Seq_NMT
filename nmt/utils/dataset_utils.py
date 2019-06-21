@@ -3,8 +3,8 @@ import collections
 import os
 import tensorflow as tf
 
-from FLAGS import PARAM
-from utils import vocab_utils
+from ..FLAGS import PARAM
+from ..utils import vocab_utils
 
 __all__ = ['load_data', 'get_batch_inputs_form_dataset']
 
@@ -164,10 +164,9 @@ def get_batch_inputs_form_dataset(log_file,
 def load_data(inference_input_file, hparams=None):
   """Load inference data."""
   with codecs.getreader("utf-8")(
-      tf.gfile.GFile(inference_input_file, mode="rb")) as f:
+          tf.gfile.GFile(inference_input_file, mode="rb")) as f:
     inference_data = f.read().splitlines()
 
   if hparams and hparams.inference_indices:
     inference_data = [inference_data[i] for i in hparams.inference_indices]
   return inference_data
-

@@ -1,4 +1,5 @@
 import abc
+import collections
 import tensorflow as tf
 import tensorflow.contrib as contrib
 from tensorflow.python.ops import lookup_ops
@@ -24,9 +25,9 @@ __all__ = [
 #   pass
 
 class BaseModel(object):
-  """
+  '''
   sequence-to-sequence base class
-  """
+  '''
 
   def __init__(self,
                log_file,
@@ -39,11 +40,14 @@ class BaseModel(object):
                target_in_id_seq=None,
                target_out_id_seq=None,
                target_seq_lengths=None):
-    """
+    '''
     Args:
       mode: PARAM.MODEL_TRAIN_KEY | PARAM.MODEL_VALIDATION_KEY | PARAM.MODEL_INFER_KEY
-      tgt_vocab_table: Lookup table mapping target words to ids.
-    """
+      iterator: Dataset Iterator that feeds data.
+      source_vocab_table: Lookup table mapping source words to ids.
+      target_vocab_table: Lookup table mapping target words to ids.
+      scope: scope of the model.
+    '''
     self.log_file = log_file
     self.source_id_seq = source_id_seq # [batch, time(ids_num)]
     self.target_in_id_seq = target_in_id_seq # [batch, time]
@@ -65,7 +69,7 @@ class BaseModel(object):
     assert self.num_encoder_layers and self.num_decoder_layers, 'layers num error'
 
     if PARAM.use_char_encode:
-      assert (not PARAM.time_major), "Can't use time major for char-level inputs."
+      assert (not PARAM.time_major), ("Can't use time major for char-level inputs.")
 
     initializer = misc_utils.get_initializer(
         init_op=PARAM.init_op, init_weight=PARAM.init_weight)
@@ -220,7 +224,6 @@ class BaseModel(object):
 
       is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
 
-      global inputs
       if is_sequence:
         labels = tf.reshape(labels, [-1, 1]) # [time*batch, 1] if time_major else [batch*time, 1]
         inputs = tf.reshape(rnn_outputs_for_sampled_sotmax,
@@ -250,10 +253,10 @@ class BaseModel(object):
 
   @abc.abstractmethod
   def _build_encoder(self, seq, seq_lengths):
-    """
+    '''
     Returns:
       a tuple: (encoder_outputs, encoder_final_state)
-    """
+    '''
     import traceback
     traceback.print_exc()
     raise NotImplementedError(
@@ -263,10 +266,10 @@ class BaseModel(object):
   def _build_decoder(self,
                      encoder_outputs,
                      encoder_final_state):
-    """
+    '''
     Returns:
       A tuple: (final_logits, decoder_final_state)
-    """
+    '''
     import traceback
     traceback.print_exc()
     raise NotImplementedError(
@@ -275,10 +278,10 @@ class BaseModel(object):
 
 class Model(BaseModel):
   def _build_encoder(self,seq,seq_lengths):
-    """
+    '''
     Returns:
       encoder_outputs, encoder_final_state
-    """
+    '''
     if PARAM.time_major:
       seq = tf.transpose(seq)
 
@@ -378,13 +381,13 @@ class Model(BaseModel):
     return multi_cell, decoder_init_state
 
   def _build_decoder(self, encoder_outputs, encoder_final_state):
-    """
+    '''
     Args:
       a tuple: (encoder_outputs, encoder_final_state)
     Returns:
       A tuple: (rnn_noproj_outputs, logits, sample_id, decoder_final_state)
         logits dim: [time, batch_size, vocab_size] when time_major=True
-    """
+    '''
     tgt_sos_id = tf.cast(
       self.tgt_vocab_table.lookup(tf.constant(PARAM.sos)), tf.int32)
     tgt_eos_id = tf.cast(
@@ -392,6 +395,7 @@ class Model(BaseModel):
     start_tokens = tf.fill([self.batch_size], tgt_sos_id)
     end_token = tgt_eos_id
 
+    max_rnn_iterations = None
     if PARAM.tgt_max_len_infer:
       max_rnn_iterations = PARAM.tgt_max_len_infer
       misc_utils.printinfo("  decoding max_rnn_iterations %d" % max_rnn_iterations)
@@ -430,7 +434,7 @@ class Model(BaseModel):
           helper = tf.contrib.seq2seq.SampleEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token,
               softmax_temperature=sampling_temperature,
-              seed=None)
+              seed=self.random_seed)
         elif PARAM.infer_mode == "greedy":
           helper = contrib.seq2seq.GreedyEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token)
@@ -448,7 +452,7 @@ class Model(BaseModel):
         # Dynamic decoding
         decoder_outputs, final_context_state, _ = contrib.seq2seq.dynamic_decode(
             decoder,
-            maximum_iterations=max_rnn_iterations,
+            maximum_iterations=max_rnn_iterations if self.mode == PARAM.MODEL_INFER_KEY else None,
             output_time_major=PARAM.time_major,
             swap_memory=True,
             scope=decoder_scope

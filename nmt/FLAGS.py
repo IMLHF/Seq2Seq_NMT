@@ -5,6 +5,7 @@ class static_key(object):
   MODEL_VALIDATE_KEY = 'val'
 
 class base_config(static_key):
+  # root_dir = '/mnt/d/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   config_name = 'base'
   min_TF_version = "1.12.0"
