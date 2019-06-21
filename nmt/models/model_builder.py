@@ -1,15 +1,14 @@
 import collections
 import os
 import tensorflow as tf
-import tensorflow.contrib as contrib
 
-from FLAGS import PARAM
+from ..FLAGS import PARAM
 # from models import gnmt_model
 # from models import attention_model
-from models import vanilla_model
-from utils import dataset_utils
-from utils import misc_utils
-from utils import vocab_utils
+from . import vanilla_model
+from ..utils import dataset_utils
+from ..utils import misc_utils
+from ..utils import vocab_utils
 
 # ckpt_dir = os.path.join(PARAM.root_dir,'exp',PARAM.config_name,
 #                         'ckpt')
@@ -29,7 +28,7 @@ def _get_model_creator():
 
 
 class BuildModelOutputs(
-    collections.namedtuple("BuildModelOutputs", ("session", "graph", "model", "dataset"))):
+        collections.namedtuple("BuildModelOutputs", ("session", "graph", "model", "dataset"))):
   pass
 
 def build_train_model(log_file, ckpt_dir, scope='train'):

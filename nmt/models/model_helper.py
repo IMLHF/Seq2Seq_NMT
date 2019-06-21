@@ -1,10 +1,7 @@
-import collections
 import tensorflow as tf
 import tensorflow.contrib as contrib
 
-from FLAGS import PARAM
-from utils import dataset_utils
-from utils import vocab_utils
+from ..FLAGS import PARAM
 
 
 def _single_rnn_cell(unit_type, num_units, forget_bias, droprate, mode,
@@ -59,7 +56,3 @@ def multiRNNCell(unit_type, num_units, num_layers, layer_start_residual,
     return cell_list[0]
   else:
     return contrib.rnn.MultiRNNCell(cell_list)
-
-
-
-
