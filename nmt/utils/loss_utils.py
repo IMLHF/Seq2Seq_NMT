@@ -24,6 +24,6 @@ def cross_entropy_loss(logits, crossent, decoder_cell_outputs, target_output, ta
     loss = tf.reduce_sum(crossent * target_weights, axis=-1) # [batch]
 
   seq_lengths = tf.cast(target_sequence_length,dtype=loss.dtype)
-  loss = tf.reduce_sum(loss / seq_lengths)
+  loss = tf.reduce_mean(loss / seq_lengths)
 
   return loss

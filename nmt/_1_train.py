@@ -30,7 +30,7 @@ def eval_one_epoch(log_file, val_sgmd):
            # val_sgmd.model.batch_size,
        ]))
       val_loss += loss
-      data_len + 1
+      data_len += 1
     except tf.errors.OutOfRangeError:
       break
 
@@ -59,15 +59,15 @@ def train_one_epoch(log_file, train_sgmd):
            train_sgmd.model.learning_rate,
        ]))
       tr_loss += loss
-      msg = 'batchstep, loss:%.4f, lr:%.4f.' % (loss, lr)
-      misc_utils.printinfo(msg, log_file)
+      # msg = 'batchstep, loss:%.4f, lr:%.4f.' % (loss, lr)
+      # misc_utils.printinfo(msg, log_file)
       i += 1
     except tf.errors.OutOfRangeError:
       break
   tr_loss /= i
   e_time = time.time()
   return TrainOneEpochOutputs(average_loss=tr_loss,
-                              druation=s_time-e_time,
+                              duration=e_time-s_time,
                               learning_rate=lr)
 
 
@@ -96,6 +96,8 @@ def main(exp_dir,
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
     # train
     trainOneEpochOutput = train_one_epoch(log_file, train_sgmd)
+    train_sgmd.model.saver.save(train_sgmd.session,
+                                os.path.join(ckpt_dir,'tmp'))
 
     # eval
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
@@ -113,7 +115,7 @@ def main(exp_dir,
            )
     misc_utils.printinfo(msg, log_file)
 
-    #
+    # if val pass
     ckpt_name = PARAM.config_name+'_iter%d_trloss%.4f_valloss%.4f_lr%.4f'
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir, ckpt_name))
@@ -123,4 +125,5 @@ def main(exp_dir,
 
 
 if __name__ == '__main__':
+  tf.logging.set_verbosity(tf.logging.INFO)
   main(*misc_utils.ini_task('train'))

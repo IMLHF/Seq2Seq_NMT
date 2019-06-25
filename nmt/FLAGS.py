@@ -6,7 +6,8 @@ class static_key(object):
 
 class base_config(static_key):
   # root_dir = '/mnt/d/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
-  root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
+  # root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
+  root_dir = '/home/room/work/nmt_seq2seq_first/test'
   config_name = 'base'
   min_TF_version = "1.12.0"
   num_keep_ckpts = 15
@@ -76,10 +77,10 @@ class base_config(static_key):
 
   src = "vi" # Source suffix, e.g., en. Must be assigned.
   tgt = "en" # Target suffix.
-  train_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/train" # Train prefix, expect files with src/tgt suffixes.
-  val_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/tst2012" # Dev prefix.
-  test_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/tst2013" # Test prefix.
-  vocab_prefix = "/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT/iwslt15/vocab" # Vocab prefix, expect files with src/tgt suffixes.
+  train_prefix = "iwslt15/train" # Train prefix, expect files with src/tgt suffixes.
+  val_prefix = "iwslt15/tst2012" # Dev prefix.
+  test_prefix = "iwslt15/tst2013" # Test prefix.
+  vocab_prefix = "iwslt15/vocab" # Vocab prefix, expect files with src/tgt suffixes.
   embedding_on_device = '/cpu:0'
   embed_prefix = None
   # '''
@@ -104,7 +105,7 @@ class base_config(static_key):
   encoder_drop_rate = 0.2
   decoder_drop_rate = 0.2
   max_gradient_norm = 5.0 # gradient clip
-  batch_size = 128
+  batch_size = 1000
   steps_to_logging = 100
   max_train = 0 # Limit on the size of training data (0: no limit).
   num_buckets = 5 # Bucket sentence pairs by the length of their source sentence and target sentence.

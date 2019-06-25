@@ -39,6 +39,8 @@ def build_train_model(log_file, ckpt_dir, scope='train'):
   with graph.as_default(), tf.container(scope):
     src_file = "%s.%s" % (PARAM.train_prefix, PARAM.src)
     tgt_file = "%s.%s" % (PARAM.train_prefix, PARAM.tgt)
+    src_file = misc_utils.add_rootdir(src_file)
+    tgt_file = misc_utils.add_rootdir(tgt_file)
     vocab_tables = vocab_utils.create_vocab_word2id_tables(log_file) # word->id
     src_vocab_table, tgt_vocab_table, src_table_size, tgt_table_size = vocab_tables
 
@@ -69,7 +71,7 @@ def build_train_model(log_file, ckpt_dir, scope='train'):
     config_proto = misc_utils.get_session_config_proto()
     train_sess = tf.Session(config=config_proto, graph=graph)
     train_sess.run(init)
-    ckpt_name = 'initial_model(initial_variable)'
+    ckpt_name = 'tmp'
     train_model.saver.save(train_sess, os.path.join(ckpt_dir, ckpt_name))
   return BuildModelOutputs(session=train_sess,
                            graph=graph,
@@ -82,6 +84,8 @@ def build_val_model(log_file, ckpt_dir, scope='validation'):
   with graph.as_default(), tf.container(scope):
     src_file = "%s.%s" % (PARAM.val_prefix, PARAM.src)
     tgt_file = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
+    src_file = misc_utils.add_rootdir(src_file)
+    tgt_file = misc_utils.add_rootdir(tgt_file)
     vocab_tables = vocab_utils.create_vocab_word2id_tables(log_file) # word->id
     src_vocab_table, tgt_vocab_table, src_table_size, tgt_table_size = vocab_tables
 
@@ -132,6 +136,8 @@ def build_infer_model(log_file, ckpt_dir, scope='infer'):
   with graph.as_default(), tf.container(scope):
     src_file = "%s.%s" % (PARAM.val_prefix, PARAM.src)
     tgt_file = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
+    src_file = misc_utils.add_rootdir(src_file)
+    tgt_file = misc_utils.add_rootdir(tgt_file)
     vocab_tables = vocab_utils.create_vocab_word2id_tables(log_file) # word->id
     src_vocab_table, tgt_vocab_table, src_table_size, tgt_table_size = vocab_tables
 

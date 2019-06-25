@@ -55,8 +55,12 @@ class BaseModel(object):
     self.source_seq_lengths = source_seq_lengths # [batch]
     self.target_seq_lengths = target_seq_lengths # [batch]
     self.mode = mode
-    self.src_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.src)
-    self.tgt_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.tgt)
+
+    src_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.src)
+    tgt_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.tgt)
+    self.src_vocab_file = misc_utils.add_rootdir(src_vocab_file)
+    self.tgt_vocab_file = misc_utils.add_rootdir(tgt_vocab_file)
+
     # self.src_vocab_table = source_vocab_table
     self.tgt_vocab_table = tgt_vocab_table
     self.src_vocab_size = src_vocab_size

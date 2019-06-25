@@ -6,6 +6,8 @@ import tensorflow.contrib.slim as slim
 
 from ..FLAGS import PARAM
 
+def add_rootdir(_dir):
+  return os.path.join(PARAM.root_dir,_dir)
 
 def ini_task(name):
   exp_dir = os.path.join(PARAM.root_dir,'exp',PARAM.config_name)
@@ -28,8 +30,8 @@ def ini_task(name):
 
   printinfo("# save log at:%s" % log_file, log_file)
 
-  printinfo("# Visible Devices to TensorFlow %s." % repr(tf.Session().list_devices()),
-            log_file)
+  # printinfo("# Visible Devices to TensorFlow %s." % repr(tf.Session().list_devices()),
+  #           log_file)
 
   # print and save hparams
   print_hparams(not PARAM.verbose_print_hparams)
