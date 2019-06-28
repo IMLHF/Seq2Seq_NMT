@@ -54,6 +54,8 @@ class BaseModel(object):
                                          initializer=tf.constant(PARAM.learning_rate))
     # self.learning_rate = tf.constant(PARAM.learning_rate)
     #TODO set learning_rate -> variable & add change_lr()
+    self._new_lr = tf.placeholder(tf.float32,name="new_lr")
+    self._assign_lr = tf.assign(self.learning_rate, self.new_lr)
     self.save_variables = [self.global_step, self.learning_rate]
     self.log_file = log_file
     self.source_id_seq = source_id_seq # [batch, time(ids_num)]
@@ -283,6 +285,10 @@ class BaseModel(object):
     traceback.print_exc()
     raise NotImplementedError(
         "_build_decoder not implement, code: jqwirjjg992jgaldjf-0")
+
+  def change_lr(self, sess, new_lr):
+    sess.run(self._assign_lr, feed_dict={self._new_lr:new_lr})
+
 
 
 class Model(BaseModel):
