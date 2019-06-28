@@ -48,6 +48,8 @@ class BaseModel(object):
       target_vocab_table: Lookup table mapping target words to ids.
       scope: scope of the model.
     '''
+    self.global_step = tf.get_variable('global_step',dtype=tf.int32,
+                                       initializer=tf.constant(0),trainable=False)
     self.log_file = log_file
     self.source_id_seq = source_id_seq # [batch, time(ids_num)]
     self.target_in_id_seq = target_in_id_seq # [batch, time]
@@ -151,8 +153,12 @@ class BaseModel(object):
         self._build_decoder(encoder_outputs, encoder_final_state)
       )  # build_decoder, encoder_outputs is not used (for attention)
 
+    trainable_variables = tf.trainable_variables()
+    self.save_variables = [var for var in trainable_variables]
+    self.save_variables.append(self.global_step)
+    # self.saver = tf.train.Saver(tf.trainable_variables(),
     # self.saver = tf.train.Saver(tf.global_variables(),
-    self.saver = tf.train.Saver(tf.trainable_variables(),
+    self.saver = tf.train.Saver(self.save_variables,
                                 max_to_keep=PARAM.num_keep_ckpts)
 
     # infer end
@@ -209,7 +215,8 @@ class BaseModel(object):
     self.grad_norm_summary = grad_norm_summary
     self.grad_norm = grad_norm
 
-    self.train_op = opt.apply_gradients(zip(clipped_grads, params))
+    self.train_op = opt.apply_gradients(zip(clipped_grads, params),
+                                        global_step=self.global_step)
     # endregion
 
     # Summary
