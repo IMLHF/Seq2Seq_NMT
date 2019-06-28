@@ -45,20 +45,23 @@ class TrainOneEpochOutputs(
                            ("average_loss", "duration", "learning_rate"))):
   pass
 
-def train_one_epoch(log_file, train_sgmd):
+def train_one_epoch(log_file, summary_writer, train_sgmd):
   tr_loss, i = 0.0, 0
   s_time = time.time()
   train_sgmd.session.run(train_sgmd.dataset.initializer)
 
   while True:
     try:
-      (_, loss, lr,
+      (_, loss, lr, summary_train, global_step,
        ) = (train_sgmd.session.run([
            train_sgmd.model.train_op,
            train_sgmd.model.loss,
            train_sgmd.model.learning_rate,
+           train_sgmd.model.train_summary,
+           train_sgmd.model.global_step
        ]))
       tr_loss += loss
+      summary_writer.add_summary(summary_train, global_step)
       # msg = 'batchstep, loss:%.4f, lr:%.4f.' % (loss, lr)
       # misc_utils.printinfo(msg, log_file)
       i += 1
@@ -79,6 +82,8 @@ def main(exp_dir,
   # gmd : session, graph, model, dataset
   train_sgmd = model_builder.build_train_model(log_file, ckpt_dir, PARAM.scope)
   val_sgmd = model_builder.build_val_model(log_file, ckpt_dir, PARAM.scope)
+  # misc_utils.show_all_variables(train_sgmd.graph)
+  misc_utils.show_variables(train_sgmd.model.save_variables, train_sgmd.graph)
 
   # finalize graph
   train_sgmd.graph.finalize()
@@ -91,11 +96,14 @@ def main(exp_dir,
       evalOneEpochOutputs.duration)
   misc_utils.printinfo(val_msg, log_file)
 
+  # Summary writer
+  summary_writer = tf.summary.FileWriter(summary_dir, train_sgmd.graph)
+
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
     # train
-    trainOneEpochOutput = train_one_epoch(log_file, train_sgmd)
+    trainOneEpochOutput = train_one_epoch(log_file, summary_writer, train_sgmd)
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
 

@@ -138,14 +138,17 @@ def gradient_clip(gradients, max_gradient_norm):
   return clipped_gradients, gradient_norm_summary, gradient_norm
 
 
-def show_variables(vars_):
+def show_variables(vars_, graph):
+  with graph.as_default():
     slim.model_analyzer.analyze_vars(vars_, print_info=True)
     sys.stdout.flush()
 
 
-def show_all_variables():
-    model_vars = tf.trainable_variables()
-    show_variables(model_vars)
+def show_all_variables(graph):
+  with graph.as_default():
+    model_vars = tf.global_variables()
+    # model_vars = tf.trainable_variables()
+    show_variables(model_vars, graph)
 
 
 if __name__ == '__main__':
