@@ -50,6 +50,11 @@ class BaseModel(object):
     '''
     self.global_step = tf.get_variable('global_step',dtype=tf.int32,
                                        initializer=tf.constant(0),trainable=False)
+    self.learning_rate = tf.get_variable('learning_rate', dtype=tf.float32, trainable=False,
+                                         initializer=tf.constant(PARAM.learning_rate))
+    # self.learning_rate = tf.constant(PARAM.learning_rate)
+    #TODO set learning_rate -> variable & add change_lr()
+    self.save_variables = [self.global_step, self.learning_rate]
     self.log_file = log_file
     self.source_id_seq = source_id_seq # [batch, time(ids_num)]
     self.target_in_id_seq = target_in_id_seq # [batch, time]
@@ -154,8 +159,7 @@ class BaseModel(object):
       )  # build_decoder, encoder_outputs is not used (for attention)
 
     trainable_variables = tf.trainable_variables()
-    self.save_variables = [var for var in trainable_variables]
-    self.save_variables.append(self.global_step)
+    self.save_variables.extend([var for var in trainable_variables])
     # self.saver = tf.train.Saver(tf.trainable_variables(),
     # self.saver = tf.train.Saver(tf.global_variables(),
     self.saver = tf.train.Saver(self.save_variables,
@@ -190,12 +194,6 @@ class BaseModel(object):
     # region apply gradient
     # Gradients and SGD update operation for training the model.
     # Arrange for the embedding vars to appear at the beginning.
-    self.learning_rate = tf.constant(PARAM.learning_rate)
-    #TODO set learning_rate -> variable
-    # warm-up # not use
-    # self.learning_rate = self._get_learning_rate_warmup(hparams)
-    # decay # not use
-    # self.learning_rate = self._get_learning_rate_decay(hparams)
 
     # Optimizer
     if PARAM.optimizer == "sgd":
