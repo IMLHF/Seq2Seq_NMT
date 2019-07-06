@@ -1,5 +1,5 @@
 exp
-*__pycache__*
+*__pycache__
 .vscode
 iws*
 nmt/test.py
