@@ -1,12 +1,12 @@
 import collections
 import os
-import sys
+# import sys
 import tensorflow as tf
 import time
 
 from .FLAGS import PARAM
 from .models import model_builder
-from .utils import dataset_utils
+# from .utils import dataset_utils
 from .utils import misc_utils
 
 
@@ -24,11 +24,12 @@ def eval_one_epoch(log_file, val_sgmd):
   while True:
     try:
       (loss,
-       #  current_bs,
-       ) = (val_sgmd.session.run([
-           val_sgmd.model.loss,
-           # val_sgmd.model.batch_size,
-       ]))
+       # current_bs,
+       ) = (val_sgmd.session.run(
+        [
+          val_sgmd.model.loss,
+          # val_sgmd.model.batch_size,
+        ]))
       val_loss += loss
       data_len += 1
     except tf.errors.OutOfRangeError:
@@ -90,10 +91,10 @@ def main(exp_dir,
   val_sgmd.graph.finalize()
 
   # region validation before training
-  evalOneEpochOutputs = eval_one_epoch(log_file, val_sgmd)
+  evalOneEpochOutputs_prev = eval_one_epoch(log_file, val_sgmd)
   val_msg = "\n\nPRERUN AVG.LOSS %.4F  costime %ds\n" % (
-      evalOneEpochOutputs.average_loss,
-      evalOneEpochOutputs.duration)
+      evalOneEpochOutputs_prev.average_loss,
+      evalOneEpochOutputs_prev.duration)
   misc_utils.printinfo(val_msg, log_file)
 
   # Summary writer
@@ -101,6 +102,8 @@ def main(exp_dir,
 
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
+  best_ckpt_name = None
+  lr_halving_time = 0
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
     # train
     trainOneEpochOutput = train_one_epoch(log_file, summary_writer, train_sgmd)
@@ -112,21 +115,56 @@ def main(exp_dir,
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
     evalOneEpochOutputs = eval_one_epoch(log_file, val_sgmd)
+    val_loss_rel_impr = 1.0 - (evalOneEpochOutputs_prev.average_loss / evalOneEpochOutputs.average_loss)
 
+    # save or abandon ckpt
+    ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_lr%.4f_duration%ds' % (
+        epoch, trainOneEpochOutput.average_loss, evalOneEpochOutputs.average_loss,
+        trainOneEpochOutput.learning_rate, trainOneEpochOutput.duration+evalOneEpochOutputs.duration))
+    if evalOneEpochOutputs.average_loss < evalOneEpochOutputs_prev.average_loss:
+      train_sgmd.model.saver.save(train_sgmd.session,
+                                  os.path.join(ckpt_dir, ckpt_name))
+      evalOneEpochOutputs_prev = evalOneEpochOutputs
+      best_ckpt_name = ckpt_name
+      msg = ("\nEpoch : %03d\n"
+             "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds."
+             "        %s saved.") % (
+          epoch, trainOneEpochOutput.average_loss,
+          evalOneEpochOutputs.average_loss,
+          trainOneEpochOutput.learning_rate,
+          trainOneEpochOutput.duration+evalOneEpochOutputs.duration,
+          best_ckpt_name,
+      )
+    else:
+      train_sgmd.model.saver.restore(train_sgmd.session,
+                                     os.path.join(ckpt_dir, best_ckpt_name))
+      msg = ("\nEpoch : %03d\n"
+             "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds."
+             "        %s abandoned.") % (
+              epoch, trainOneEpochOutput.average_loss,
+              evalOneEpochOutputs.average_loss,
+              trainOneEpochOutput.learning_rate,
+              trainOneEpochOutput.duration + evalOneEpochOutputs.duration,
+              best_ckpt_name,
+            )
     # prt
-    msg = ("\nEpoch : %03d\n"
-           "trloss:%.4f, valloss:%.4f, lr%.4f, duration:%ds.") % (
-             epoch, trainOneEpochOutput.average_loss,
-             evalOneEpochOutputs.average_loss,
-             trainOneEpochOutput.learning_rate,
-             trainOneEpochOutput.duration+evalOneEpochOutputs.duration,
-           )
     misc_utils.printinfo(msg, log_file)
 
-    # if val pass
-    ckpt_name = PARAM.config_name+'_iter%d_trloss%.4f_valloss%.4f_lr%.4f'
-    train_sgmd.model.saver.save(train_sgmd.session,
-                                os.path.join(ckpt_dir, ckpt_name))
+    # start lr halving
+    if val_loss_rel_impr < PARAM.start_halving_impr:
+      new_lr = trainOneEpochOutput.learning_rate * PARAM.lr_halving_rate
+      lr_halving_time += 1
+      train_sgmd.model.change_lr(train_sgmd.session, new_lr)
+
+    # stop criterion
+    if epoch >= PARAM.max_epoch or lr_halving_time > PARAM.max_lr_halving_time:
+      msg = "finished, too small learning rate %e." % trainOneEpochOutput.learning_rate
+      tf.logging.info(msg)
+      misc_utils.printinfo(msg, log_file, noPrt=True)
+      break
+
+  train_sgmd.session.close()
+  val_sgmd.session.close()
   msg = '################### Training Done. ###################'
   tf.logging.info(msg)
   misc_utils.printinfo(msg, log_file, noPrt=True)
