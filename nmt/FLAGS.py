@@ -1,16 +1,16 @@
 
-class static_key(object):
+class StaticKey(object):
   MODEL_TRAIN_KEY = 'train'
   MODEL_INFER_KEY = 'infer'
   MODEL_VALIDATE_KEY = 'val'
 
-class base_config(static_key):
+class BaseConfig(StaticKey):
   # root_dir = '/mnt/d/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   # root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
-  root_dir = '/home/room/work/nmt_seq2seq_first/test'
+  root_dir = '/home/room/worklhf/nmt_seq2seq_first/'
   config_name = 'base'
   min_TF_version = "1.12.0"
-  num_keep_ckpts = 15
+  num_keep_ckpts = 30
   '''
   # dir to store log, model and results files:
   $root_dir/exp/$config_name/log: logs(include tensorboard log)
@@ -19,6 +19,11 @@ class base_config(static_key):
   $root_dir/exp/$config_name/decode: decode results
   $root_dir/exp/$config_name/hparams
   '''
+
+  # lr halving & stop criterion
+  start_halving_impr = 0.003
+  lr_halving_rate = 0.5
+  max_lr_halving_time = 4
 
   # dataset
   output_buffer_size = None
@@ -164,7 +169,7 @@ class base_config(static_key):
   use_char_encode = False # ?
 
 
-class TEST_C(base_config):
+class TEST_C(BaseConfig):
   pass
 
 

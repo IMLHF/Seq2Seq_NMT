@@ -58,7 +58,7 @@ def save_hparams(f):
   self_dict = FLAGS.PARAM.__dict__
   self_dict_keys = self_dict.keys()
   f.writelines('FLAGS.PARAM:\n')
-  supper_dict = FLAGS.base_config.__dict__
+  supper_dict = FLAGS.BaseConfig.__dict__
   for key in sorted(supper_dict.keys()):
     if key in self_dict_keys:
       f.write('%s:%s\n' % (key,self_dict[key]))
@@ -77,7 +77,7 @@ def print_hparams(short=True):
   self_dict_keys = self_dict.keys()
   if not short:
     print('FLAGS.PARAM:')
-    supper_dict = FLAGS.base_config.__dict__
+    supper_dict = FLAGS.BaseConfig.__dict__
     for key in sorted(supper_dict.keys()):
       if key in self_dict_keys:
         print('%s:%s' % (key,self_dict[key]))
