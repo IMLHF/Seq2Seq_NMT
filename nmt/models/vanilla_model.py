@@ -52,8 +52,6 @@ class BaseModel(object):
                                        initializer=tf.constant(0),trainable=False)
     self.learning_rate = tf.get_variable('learning_rate', dtype=tf.float32, trainable=False,
                                          initializer=tf.constant(PARAM.learning_rate))
-    # self.learning_rate = tf.constant(PARAM.learning_rate)
-    #TODO set learning_rate -> variable & add change_lr()
     self._new_lr = tf.placeholder(tf.float32,name="new_lr")
     self._assign_lr = tf.assign(self.learning_rate, self.new_lr)
     self.save_variables = [self.global_step, self.learning_rate]
