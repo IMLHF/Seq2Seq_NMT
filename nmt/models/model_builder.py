@@ -119,7 +119,9 @@ def build_val_model(log_file, ckpt_dir, scope='validation'):
     # restore model
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
     if ckpt and ckpt.model_checkpoint_path:
+      tf.logging.set_verbosity(tf.logging.WARN)
       val_model.saver.restore(val_sess, ckpt.model_checkpoint_path)
+      tf.logging.set_verbosity(tf.logging.INFO)
     else:
       msg = 'Checkpoint not found. code:fweikgn2394jasdjf2'
       tf.logging.fatal(msg)

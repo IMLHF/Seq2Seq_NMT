@@ -112,10 +112,12 @@ def main(exp_dir,
 
     # eval
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
+    tf.logging.set_verbosity(tf.logging.WARN)
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
+    tf.logging.set_verbosity(tf.logging.INFO)
     evalOneEpochOutputs = eval_one_epoch(log_file, val_sgmd)
-    val_loss_rel_impr = 1.0 - (evalOneEpochOutputs_prev.average_loss / evalOneEpochOutputs.average_loss)
+    val_loss_rel_impr = 1.0 - (evalOneEpochOutputs.average_loss / evalOneEpochOutputs_prev.average_loss)
 
     # save or abandon ckpt
     ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_lr%.4f_duration%ds' % (
@@ -127,7 +129,7 @@ def main(exp_dir,
       evalOneEpochOutputs_prev = evalOneEpochOutputs
       best_ckpt_name = ckpt_name
       msg = ("\nEpoch : %03d\n"
-             "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds."
+             "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds.\n"
              "        %s saved.") % (
           epoch, trainOneEpochOutput.average_loss,
           evalOneEpochOutputs.average_loss,
@@ -172,4 +174,4 @@ def main(exp_dir,
 
 if __name__ == '__main__':
   tf.logging.set_verbosity(tf.logging.INFO)
-  main(*misc_utils.ini_task('train'))
+  main(*misc_utils.ini_task('train')) # generate log in '"train_"+config_name+".log"'

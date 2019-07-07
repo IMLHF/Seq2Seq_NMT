@@ -20,11 +20,6 @@ class BaseConfig(StaticKey):
   $root_dir/exp/$config_name/hparams
   '''
 
-  # lr halving & stop criterion
-  start_halving_impr = 0.003
-  lr_halving_rate = 0.5
-  max_lr_halving_time = 4
-
   # dataset
   output_buffer_size = None
   reshuffle_each_iteration = True
@@ -67,7 +62,11 @@ class BaseConfig(StaticKey):
   pass_hidden_state = True # Whether to pass encoder's hidden state to decoder when using an attention based model.
   # endregion
 
-  # regiion optimizer
+  # regiion optimizer & lr halving & stop criterion
+  start_halving_impr = 0.001
+  lr_halving_rate = 0.5
+  max_lr_halving_time = 4
+  
   optimizer = 'adam' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
   learning_rate = 0.001 # Adam: 0.001 or 0.0001; SGD: 1.0.
