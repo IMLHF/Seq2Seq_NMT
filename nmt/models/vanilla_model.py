@@ -1,5 +1,6 @@
 import abc
-import collections
+# import collections
+import time
 import tensorflow as tf
 import tensorflow.contrib as contrib
 from tensorflow.python.ops import lookup_ops
@@ -25,9 +26,9 @@ __all__ = [
 #   pass
 
 class BaseModel(object):
-  '''
+  """
   sequence-to-sequence base class
-  '''
+  """
 
   def __init__(self,
                log_file,
@@ -40,20 +41,17 @@ class BaseModel(object):
                target_in_id_seq=None,
                target_out_id_seq=None,
                target_seq_lengths=None):
-    '''
+    """
     Args:
       mode: PARAM.MODEL_TRAIN_KEY | PARAM.MODEL_VALIDATION_KEY | PARAM.MODEL_INFER_KEY
-      iterator: Dataset Iterator that feeds data.
-      source_vocab_table: Lookup table mapping source words to ids.
-      target_vocab_table: Lookup table mapping target words to ids.
-      scope: scope of the model.
-    '''
+      tgt_vocab_table: Lookup table mapping target words to ids.
+    """
     self.global_step = tf.get_variable('global_step',dtype=tf.int32,
                                        initializer=tf.constant(0),trainable=False)
     self.learning_rate = tf.get_variable('learning_rate', dtype=tf.float32, trainable=False,
                                          initializer=tf.constant(PARAM.learning_rate))
-    self._new_lr = tf.placeholder(tf.float32,name="new_lr")
-    self._assign_lr = tf.assign(self.learning_rate, self.new_lr)
+    self.new_lr = tf.placeholder(tf.float32,name="new_lr")
+    self.assign_lr = tf.assign(self.learning_rate, self.new_lr)
     self.save_variables = [self.global_step, self.learning_rate]
     self.log_file = log_file
     self.source_id_seq = source_id_seq # [batch, time(ids_num)]
@@ -80,7 +78,7 @@ class BaseModel(object):
     assert self.num_encoder_layers and self.num_decoder_layers, 'layers num error'
 
     if PARAM.use_char_encode:
-      assert (not PARAM.time_major), ("Can't use time major for char-level inputs.")
+      assert (not PARAM.time_major), "Can't use time major for char-level inputs."
 
     initializer = misc_utils.get_initializer(
         init_op=PARAM.init_op, init_weight=PARAM.init_weight)
@@ -232,7 +230,8 @@ class BaseModel(object):
     if PARAM.num_sampled_softmax > 0:
 
       is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
-
+      
+      inputs = rnn_outputs_for_sampled_sotmax
       if is_sequence:
         labels = tf.reshape(labels, [-1, 1]) # [time*batch, 1] if time_major else [batch*time, 1]
         inputs = tf.reshape(rnn_outputs_for_sampled_sotmax,
@@ -262,10 +261,10 @@ class BaseModel(object):
 
   @abc.abstractmethod
   def _build_encoder(self, seq, seq_lengths):
-    '''
+    """
     Returns:
       a tuple: (encoder_outputs, encoder_final_state)
-    '''
+    """
     import traceback
     traceback.print_exc()
     raise NotImplementedError(
@@ -275,26 +274,26 @@ class BaseModel(object):
   def _build_decoder(self,
                      encoder_outputs,
                      encoder_final_state):
-    '''
+    """
     Returns:
       A tuple: (final_logits, decoder_final_state)
-    '''
+    """
     import traceback
     traceback.print_exc()
     raise NotImplementedError(
         "_build_decoder not implement, code: jqwirjjg992jgaldjf-0")
 
   def change_lr(self, sess, new_lr):
-    sess.run(self._assign_lr, feed_dict={self._new_lr:new_lr})
+    sess.run(self.assign_lr, feed_dict={self.new_lr:new_lr})
 
 
 
 class Model(BaseModel):
   def _build_encoder(self,seq,seq_lengths):
-    '''
+    """
     Returns:
       encoder_outputs, encoder_final_state
-    '''
+    """
     if PARAM.time_major:
       seq = tf.transpose(seq)
 
@@ -394,13 +393,13 @@ class Model(BaseModel):
     return multi_cell, decoder_init_state
 
   def _build_decoder(self, encoder_outputs, encoder_final_state):
-    '''
+    """
     Args:
       a tuple: (encoder_outputs, encoder_final_state)
     Returns:
       A tuple: (rnn_noproj_outputs, logits, sample_id, decoder_final_state)
         logits dim: [time, batch_size, vocab_size] when time_major=True
-    '''
+    """
     tgt_sos_id = tf.cast(
       self.tgt_vocab_table.lookup(tf.constant(PARAM.sos)), tf.int32)
     tgt_eos_id = tf.cast(
@@ -408,7 +407,6 @@ class Model(BaseModel):
     start_tokens = tf.fill([self.batch_size], tgt_sos_id)
     end_token = tgt_eos_id
 
-    max_rnn_iterations = None
     if PARAM.tgt_max_len_infer:
       max_rnn_iterations = PARAM.tgt_max_len_infer
       misc_utils.printinfo("  decoding max_rnn_iterations %d" % max_rnn_iterations)
@@ -447,7 +445,7 @@ class Model(BaseModel):
           helper = tf.contrib.seq2seq.SampleEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token,
               softmax_temperature=sampling_temperature,
-              seed=self.random_seed)
+              seed=time.time())
         elif PARAM.infer_mode == "greedy":
           helper = contrib.seq2seq.GreedyEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token)
@@ -472,7 +470,7 @@ class Model(BaseModel):
         )
         rnn_outputs_for_sampled_sotmax = tf.no_op()
         if PARAM.infer_mode == "beam_search":
-          logits = tf.no_ops() # # beam_search decoder have no logits (just scores)
+          logits = tf.no_op() # # beam_search decoder have no logits (just scores)
           sample_id = decoder_outputs.predicted_ids
         else:
           logits = decoder_outputs.rnn_output
