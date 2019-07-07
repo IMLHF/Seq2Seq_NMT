@@ -15,7 +15,7 @@ class EvalOneEpochOutputs(
                            ("average_loss", "duration"))):
   pass
 
-def eval_one_epoch(log_file, val_sgmd):
+def eval_one_epoch(log_file, summary_writer,  val_sgmd):
   val_loss = 0
   data_len = 0
   s_time = time.time()
@@ -24,10 +24,12 @@ def eval_one_epoch(log_file, val_sgmd):
   while True:
     try:
       (loss,
+       # val_summary,
        # current_bs,
        ) = (val_sgmd.session.run(
         [
           val_sgmd.model.loss,
+          # val_sgmd.model.val_summary,
           # val_sgmd.model.batch_size,
         ]))
       val_loss += loss
@@ -37,6 +39,7 @@ def eval_one_epoch(log_file, val_sgmd):
 
   val_loss /= data_len
   e_time = time.time()
+  # tf.summary.scalar('val_loss')
   return EvalOneEpochOutputs(average_loss=val_loss,
                              duration=e_time-s_time)
 
@@ -47,7 +50,7 @@ class TrainOneEpochOutputs(
   pass
 
 def train_one_epoch(log_file, summary_writer, train_sgmd):
-  tr_loss, i = 0.0, 0
+  tr_loss, i, lr = 0.0, 0, -1
   s_time = time.time()
   train_sgmd.session.run(train_sgmd.dataset.initializer)
 
@@ -90,15 +93,15 @@ def main(exp_dir,
   train_sgmd.graph.finalize()
   val_sgmd.graph.finalize()
 
+  # Summary writer
+  summary_writer = tf.summary.FileWriter(summary_dir, train_sgmd.graph)
+  
   # region validation before training
-  evalOneEpochOutputs_prev = eval_one_epoch(log_file, val_sgmd)
+  evalOneEpochOutputs_prev = eval_one_epoch(log_file, summary_writer, val_sgmd)
   val_msg = "\n\nPRERUN AVG.LOSS %.4F  costime %ds\n" % (
       evalOneEpochOutputs_prev.average_loss,
       evalOneEpochOutputs_prev.duration)
   misc_utils.printinfo(val_msg, log_file)
-
-  # Summary writer
-  summary_writer = tf.summary.FileWriter(summary_dir, train_sgmd.graph)
 
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
@@ -116,7 +119,7 @@ def main(exp_dir,
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
     tf.logging.set_verbosity(tf.logging.INFO)
-    evalOneEpochOutputs = eval_one_epoch(log_file, val_sgmd)
+    evalOneEpochOutputs = eval_one_epoch(log_file, summary_writer, val_sgmd)
     val_loss_rel_impr = 1.0 - (evalOneEpochOutputs.average_loss / evalOneEpochOutputs_prev.average_loss)
 
     # save or abandon ckpt

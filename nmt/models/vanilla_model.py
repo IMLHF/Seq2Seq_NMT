@@ -180,6 +180,11 @@ class BaseModel(object):
                                               self.target_seq_lengths,
                                               self.batch_size)
 
+    # val summary
+    # self.val_summary = tf.summary.merge(
+    #   [tf.summary.scalar('val_loss', self.loss)]
+    # )
+    
     # val end
     if self.mode == PARAM.MODEL_VALIDATE_KEY:
       return
@@ -215,11 +220,12 @@ class BaseModel(object):
                                         global_step=self.global_step)
     # endregion
 
-    # Summary
+    # Train Summary
     self.train_summary = tf.summary.merge(
         [tf.summary.scalar("lr", self.learning_rate),
          tf.summary.scalar("train_loss", self.loss)] +
-        self.grad_norm_summary)
+        self.grad_norm_summary
+    )
 
 
   def _softmax_cross_entropy_loss(
