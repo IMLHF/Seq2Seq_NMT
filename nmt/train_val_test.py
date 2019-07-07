@@ -10,12 +10,12 @@ from .models import model_builder
 from .utils import misc_utils
 
 
-class EvalOneEpochOutputs(
-    collections.namedtuple("EvalOneEpochOutputs",
+class ValOneEpochOutputs(
+    collections.namedtuple("ValOneEpochOutputs",
                            ("average_loss", "duration"))):
   pass
 
-def eval_one_epoch(log_file, summary_writer,  val_sgmd):
+def val_one_epoch(log_file, summary_writer, val_sgmd):
   val_loss = 0
   data_len = 0
   s_time = time.time()
@@ -40,8 +40,8 @@ def eval_one_epoch(log_file, summary_writer,  val_sgmd):
   val_loss /= data_len
   e_time = time.time()
   # tf.summary.scalar('val_loss')
-  return EvalOneEpochOutputs(average_loss=val_loss,
-                             duration=e_time-s_time)
+  return ValOneEpochOutputs(average_loss=val_loss,
+                            duration=e_time-s_time)
 
 
 class TrainOneEpochOutputs(
@@ -97,10 +97,10 @@ def main(exp_dir,
   summary_writer = tf.summary.FileWriter(summary_dir, train_sgmd.graph)
   
   # region validation before training
-  evalOneEpochOutputs_prev = eval_one_epoch(log_file, summary_writer, val_sgmd)
+  valOneEpochOutputs_prev = val_one_epoch(log_file, summary_writer, val_sgmd)
   val_msg = "\n\nPRERUN AVG.LOSS %.4F  costime %ds\n" % (
-      evalOneEpochOutputs_prev.average_loss,
-      evalOneEpochOutputs_prev.duration)
+      valOneEpochOutputs_prev.average_loss,
+      valOneEpochOutputs_prev.duration)
   misc_utils.printinfo(val_msg, log_file)
 
   # train epochs
@@ -113,31 +113,31 @@ def main(exp_dir,
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
 
-    # eval
+    # validation
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
     tf.logging.set_verbosity(tf.logging.WARN)
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
     tf.logging.set_verbosity(tf.logging.INFO)
-    evalOneEpochOutputs = eval_one_epoch(log_file, summary_writer, val_sgmd)
-    val_loss_rel_impr = 1.0 - (evalOneEpochOutputs.average_loss / evalOneEpochOutputs_prev.average_loss)
+    valOneEpochOutputs = val_one_epoch(log_file, summary_writer, val_sgmd)
+    val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
 
     # save or abandon ckpt
     ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_lr%.4f_duration%ds' % (
-        epoch, trainOneEpochOutput.average_loss, evalOneEpochOutputs.average_loss,
-        trainOneEpochOutput.learning_rate, trainOneEpochOutput.duration+evalOneEpochOutputs.duration))
-    if evalOneEpochOutputs.average_loss < evalOneEpochOutputs_prev.average_loss:
+        epoch, trainOneEpochOutput.average_loss, valOneEpochOutputs.average_loss,
+        trainOneEpochOutput.learning_rate, trainOneEpochOutput.duration+valOneEpochOutputs.duration))
+    if valOneEpochOutputs.average_loss < valOneEpochOutputs_prev.average_loss:
       train_sgmd.model.saver.save(train_sgmd.session,
                                   os.path.join(ckpt_dir, ckpt_name))
-      evalOneEpochOutputs_prev = evalOneEpochOutputs
+      valOneEpochOutputs_prev = valOneEpochOutputs
       best_ckpt_name = ckpt_name
       msg = ("\nEpoch : %03d\n"
              "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds.\n"
              "        %s saved.") % (
           epoch, trainOneEpochOutput.average_loss,
-          evalOneEpochOutputs.average_loss,
+          valOneEpochOutputs.average_loss,
           trainOneEpochOutput.learning_rate,
-          trainOneEpochOutput.duration+evalOneEpochOutputs.duration,
+          trainOneEpochOutput.duration+valOneEpochOutputs.duration,
           best_ckpt_name,
       )
     else:
@@ -147,9 +147,9 @@ def main(exp_dir,
              "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds."
              "        %s abandoned.") % (
               epoch, trainOneEpochOutput.average_loss,
-              evalOneEpochOutputs.average_loss,
+              valOneEpochOutputs.average_loss,
               trainOneEpochOutput.learning_rate,
-              trainOneEpochOutput.duration + evalOneEpochOutputs.duration,
+              trainOneEpochOutput.duration + valOneEpochOutputs.duration,
               best_ckpt_name,
             )
     # prt
