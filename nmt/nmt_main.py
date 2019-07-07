@@ -4,18 +4,18 @@ import sys
 
 from .utils import misc_utils
 # from .FLAGS import PARAM
-from . import train_eval
+from . import train_val_test
 
 
 def main(_):
   # num_worker = PARAM.num_workers
   exp_dir, log_dir, summary_dir, ckpt_dir, log_file = misc_utils.ini_task('nmt_main')
 
-  train_eval.main(exp_dir=exp_dir,
-                  log_dir=log_dir,
-                  summary_dir=summary_dir,
-                  ckpt_dir=ckpt_dir,
-                  log_file=log_file)
+  train_val_test.main(exp_dir=exp_dir,
+                      log_dir=log_dir,
+                      summary_dir=summary_dir,
+                      ckpt_dir=ckpt_dir,
+                      log_file=log_file)
 
 
 if __name__ == '__main__':
