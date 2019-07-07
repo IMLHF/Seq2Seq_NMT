@@ -1,9 +1,9 @@
 import tensorflow as tf
 import sys
-import os
+# import os
 
 from .utils import misc_utils
-from .FLAGS import PARAM
+# from .FLAGS import PARAM
 from . import _1_train
 from . import _2_test
 
@@ -22,6 +22,7 @@ def main(_):
                summary_dir=summary_dir,
                ckpt_dir=ckpt_dir,
                log_file=log_file)
+
 
 if __name__ == '__main__':
   tf.app.run(main=main, argv=sys.argv)
