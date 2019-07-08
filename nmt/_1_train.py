@@ -34,7 +34,7 @@ def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
       (loss, # reduce_mean batch&time
        #  predict_len, # for ppl2
        #  mat_loss, # for ppl2
-       batch_avg_ppl, # reduce_mean batch
+       batch_sum_ppl, # reduce_sum batch && reduce_mean time
        # val_summary,
        current_bs,
        ) = (val_sgmd.session.run(
@@ -42,13 +42,13 @@ def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
             val_sgmd.model.loss,
             # val_sgmd.model.predict_count, # for ppl2
             # val_sgmd.model.mat_loss, # for ppl2
-            val_sgmd.model.batch_avg_ppl,
+            val_sgmd.model.batch_sum_ppl,
             # val_sgmd.model.val_summary,
             val_sgmd.model.batch_size,
             ]))
       val_loss += loss
       data_len += current_bs
-      total_ppl += batch_avg_ppl
+      total_ppl += batch_sum_ppl
 
       # for ppl2
       # print(np.shape(mat_loss))
@@ -59,11 +59,11 @@ def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
       break
 
   # ppl
-  ppl = total_ppl/data_len
+  avg_ppl = total_ppl/data_len # reduce_mean batch&time
 
   # ppl2
-  # ppl2 = eval_utils.calc_ppl(loss_sum_batchandtime, total_predict_len)
-  # print('debug——ppl2: %d' % ppl2)
+  # avg_ppl2 = eval_utils.calc_ppl(loss_sum_batchandtime, total_predict_len)
+  # print('debug——ppl2: %d' % avg_ppl2)
 
   # avg_loss
   avg_val_loss = val_loss / data_len
@@ -73,12 +73,12 @@ def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
 
   e_time = time.time()
   misc_utils.add_summary(summary_writer, epoch, "epoch_val_loss", avg_val_loss)
-  if epoch:
+  if epoch: # if epoch=0, pre_run not show msg.
     misc_utils.printinfo('        validation done, duration %ds' % (e_time-s_time), log_file)
   return ValOneEpochOutputs(average_loss=avg_val_loss,
                             duration=e_time-s_time,
                             average_bleu=None,
-                            average_ppl=ppl)
+                            average_ppl=avg_ppl)
 
 
 class TrainOneEpochOutputs(

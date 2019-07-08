@@ -191,9 +191,9 @@ class BaseModel(object):
     so: ppl_per_sentense = exp(reduce_mean(cross_entropy,time_axis))
     '''
     if PARAM.time_major:
-      self.batch_avg_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, 0))) # reduce_sum batch
+      self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, 0))) # reduce_sum batch
     else:
-      self.batch_avg_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
+      self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
 
     # infer end
     if self.mode == PARAM.MODEL_INFER_KEY:
