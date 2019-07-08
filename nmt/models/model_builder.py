@@ -37,17 +37,19 @@ def build_train_model(log_file, ckpt_dir, scope='train'):
   model_creator = _get_model_creator()
   graph = tf.Graph()
   with graph.as_default(), tf.container(scope):
-    src_file = "%s.%s" % (PARAM.train_prefix, PARAM.src)
-    tgt_file = "%s.%s" % (PARAM.train_prefix, PARAM.tgt)
-    src_file = misc_utils.add_rootdir(src_file)
-    tgt_file = misc_utils.add_rootdir(tgt_file)
+    # src_file = "%s.%s" % (PARAM.train_prefix, PARAM.src)
+    # tgt_file = "%s.%s" % (PARAM.train_prefix, PARAM.tgt)
+    # src_file = misc_utils.add_rootdir(src_file)
+    # tgt_file = misc_utils.add_rootdir(tgt_file)
+    src_file_ph = tf.placeholder(shape=(), dtype=tf.string)
+    tgt_file_ph = tf.placeholder(shape=(), dtype=tf.string)
     vocab_tables = vocab_utils.create_vocab_word2id_tables(log_file) # word->id
     src_vocab_table, tgt_vocab_table, src_table_size, tgt_table_size = vocab_tables
 
     train_set = dataset_utils.get_batch_inputs_form_dataset(
         log_file,
-        src_file,
-        tgt_file,
+        src_file_ph,
+        tgt_file_ph,
         src_vocab_table,
         tgt_vocab_table,
     )
@@ -82,17 +84,19 @@ def build_val_model(log_file, ckpt_dir, scope='validation'):
   model_creator = _get_model_creator()
   graph = tf.Graph()
   with graph.as_default(), tf.container(scope):
-    src_file = "%s.%s" % (PARAM.val_prefix, PARAM.src)
-    tgt_file = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
-    src_file = misc_utils.add_rootdir(src_file)
-    tgt_file = misc_utils.add_rootdir(tgt_file)
+    # src_file = "%s.%s" % (PARAM.val_prefix, PARAM.src)
+    # tgt_file = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
+    # src_file = misc_utils.add_rootdir(src_file)
+    # tgt_file = misc_utils.add_rootdir(tgt_file)
+    src_file_ph = tf.placeholder(shape=(), dtype=tf.string)
+    tgt_file_ph = tf.placeholder(shape=(), dtype=tf.string)
     vocab_tables = vocab_utils.create_vocab_word2id_tables(log_file) # word->id
     src_vocab_table, tgt_vocab_table, src_table_size, tgt_table_size = vocab_tables
 
     val_set = dataset_utils.get_batch_inputs_form_dataset(
         log_file,
-        src_file,
-        tgt_file,
+        src_file_ph,
+        tgt_file_ph,
         src_vocab_table,
         tgt_vocab_table,
     )

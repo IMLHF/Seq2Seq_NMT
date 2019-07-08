@@ -71,8 +71,6 @@ class BaseConfig(StaticKey):
   loss = 'cross_entropy' #
   learning_rate = 0.001 # Adam: 0.001 or 0.0001; SGD: 1.0.
 
-  epoch_step = 0
-  num_train_steps = 12000
   colocate_gradients_with_ops = True # params of tf.gradients() to parallel
   # endregion
 
@@ -110,9 +108,9 @@ class BaseConfig(StaticKey):
   decoder_drop_rate = 0.2
   max_gradient_norm = 5.0 # gradient clip
   batch_size = 1000
-  steps_to_logging = 100
+  batches_to_logging = 100
   max_train = 0 # Limit on the size of training data (0: no limit).
-  num_buckets = 5 # Bucket sentence pairs by the length of their source sentence and target sentence.
+  num_buckets = 5 # if > 1; Bucket sentence pairs by the length of their source sentence and target sentence.
   num_sampled_softmax = 0 # Use sampled_softmax_loss if > 0, else full softmax loss.
   subword_option = '' # ?
 

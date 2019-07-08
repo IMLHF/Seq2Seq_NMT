@@ -8,14 +8,15 @@ from ..utils import vocab_utils
 
 __all__ = ['load_data', 'get_batch_inputs_form_dataset']
 
-class BatchInputs(
-    collections.namedtuple("BatchInputs",
+class DataSetsOutputs(
+    collections.namedtuple("DataSetsOutputs",
                            ("initializer",
                             "source_id_seq", "target_in_id_seq", "target_out_id_seq",
-                            "source_seq_lengths", "target_seq_lengths"))):
+                            "source_seq_lengths", "target_seq_lengths",
+                            "src_textline_file_ph", "tgt_textline_file_ph"))):
   pass
 
-def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_sos_id, tgt_eos_id):
+def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_eos_id):
   return dataset.padded_batch(
       batch_size,
       # The first three entries are the source and target line rows;
@@ -37,7 +38,7 @@ def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_sos_id, tgt_
           0,  # src_len -- unused
           0))  # tgt_len -- unused
 
-def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_sos_id, tgt_eos_id):
+def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_eos_id):
   def key_func(unused_1, unused_2, unused_3, src_len, tgt_len):
       # Calculate bucket_width by maximum source sequence length.
       # Pairs with length [0, bucket_width) go to bucket 0, length
@@ -54,7 +55,7 @@ def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_sos_id, tgt_e
       return tf.to_int64(tf.minimum(PARAM.num_buckets, bucket_id))
 
   def reduce_func(unused_key, windowed_data):
-    return _batching_func_with_labels(windowed_data, batch_size, src_eos_id, tgt_sos_id, tgt_eos_id)
+    return _batching_func_with_labels(windowed_data, batch_size, src_eos_id, tgt_eos_id)
 
   batched_dataset = dataset.apply(
       tf.data.experimental.group_by_window(
@@ -72,7 +73,8 @@ def get_batch_inputs_form_dataset(log_file,
   '''
   src_dataset = tf.data.TextLineDataset(source_textline_file)
   tgt_dataset = tf.data.TextLineDataset(target_textline_file)
-
+  
+  output_buffer_size = PARAM.output_buffer_size
   if not PARAM.output_buffer_size:
     output_buffer_size = PARAM.batch_size * 1000
 
@@ -91,7 +93,7 @@ def get_batch_inputs_form_dataset(log_file,
           tf.string_split([src]).values, tf.string_split([tgt]).values),
       num_parallel_calls=PARAM.num_parallel_calls)
   src_tgt_dataset = src_tgt_dataset.prefetch(output_buffer_size)
-
+  
   # Filter zero length input sequences.
   src_tgt_dataset = src_tgt_dataset.filter(
       lambda src, tgt: tf.logical_and(tf.size(src) > 0, tf.size(tgt) > 0))
@@ -145,21 +147,24 @@ def get_batch_inputs_form_dataset(log_file,
 
   if PARAM.num_buckets > 1:
     # Bucket sentence pairs by the length of their source sentence and target sentence.
-    batched_dataset = _bucket_dataset_by_length(src_tgt_dataset, PARAM.batch_size,
-                                                src_eos_id, tgt_sos_id, tgt_eos_id)
+    src_tgt_dataset = _bucket_dataset_by_length(src_tgt_dataset, PARAM.batch_size,
+                                                src_eos_id, tgt_eos_id)
   else:
-    batched_dataset = _batching_func_with_labels(src_tgt_dataset, PARAM.batch_size,
-                                                 src_eos_id, tgt_sos_id, tgt_eos_id)
+    src_tgt_dataset = _batching_func_with_labels(src_tgt_dataset, PARAM.batch_size,
+                                                 src_eos_id, tgt_eos_id)
 
-  batched_iter = batched_dataset.make_initializable_iterator()
+  batched_iter = src_tgt_dataset.make_initializable_iterator()
   src_ids, tgt_input_ids, tgt_output_ids, src_seq_len, tgt_seq_len = batched_iter.get_next()
-  return BatchInputs(
-      initializer=batched_iter.initializer,
-      source_id_seq=src_ids,
-      target_in_id_seq=tgt_input_ids,
-      target_out_id_seq=tgt_output_ids,
-      source_seq_lengths=src_seq_len,
-      target_seq_lengths=tgt_seq_len)
+  return DataSetsOutputs(
+    initializer=batched_iter.initializer,
+    source_id_seq=src_ids,
+    target_in_id_seq=tgt_input_ids,
+    target_out_id_seq=tgt_output_ids,
+    source_seq_lengths=src_seq_len,
+    target_seq_lengths=tgt_seq_len,
+    src_textline_file_ph=source_textline_file,
+    tgt_textline_file_ph=target_textline_file,
+  )
 
 def load_data(inference_input_file, hparams=None):
   """Load inference data."""

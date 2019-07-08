@@ -16,11 +16,14 @@ class ValOneEpochOutputs(
                             "average_loss", "duration"))):
   pass
 
-def val_one_epoch(log_file, summary_writer, val_sgmd):
+def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
+                  summary_writer, epoch, val_sgmd):
   val_loss = 0
   data_len = 0
   s_time = time.time()
-  val_sgmd.session.run(val_sgmd.dataset.initializer)
+  val_sgmd.session.run(val_sgmd.dataset.initializer,
+                       feed_dict={val_sgmd.dataset.src_textline_file_ph: src_textline_file,
+                                  val_sgmd.dataset.tgt_textline_file_ph:tgt_textline_file})
 
   while True:
     try:
@@ -37,12 +40,22 @@ def val_one_epoch(log_file, summary_writer, val_sgmd):
       data_len += 1
     except tf.errors.OutOfRangeError:
       break
-
+  
+  # avg_loss
   val_loss /= data_len
+  
+  # ppl
+  
+  # bleu
+  
   e_time = time.time()
-  # tf.summary.scalar('val_loss')
+  misc_utils.add_summary(summary_writer, epoch, "epoch_val_loss", val_loss)
+  if epoch:
+    misc_utils.printinfo('        validation done, duration %ds' % (e_time-s_time), log_file)
   return ValOneEpochOutputs(average_loss=val_loss,
-                            duration=e_time-s_time)
+                            duration=e_time-s_time,
+                            average_bleu=None,
+                            average_ppl=None)
 
 
 class TrainOneEpochOutputs(
@@ -50,30 +63,42 @@ class TrainOneEpochOutputs(
                            ("average_loss", "duration", "learning_rate"))):
   pass
 
-def train_one_epoch(log_file, summary_writer, train_sgmd):
+def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
+                    summary_writer, epoch, train_sgmd):
   tr_loss, i, lr = 0.0, 0, -1
   s_time = time.time()
-  train_sgmd.session.run(train_sgmd.dataset.initializer)
+  minbatch_time = time.time()
+  train_sgmd.session.run(train_sgmd.dataset.initializer,
+                         feed_dict={train_sgmd.dataset.src_textline_file_ph: src_textline_file,
+                                    train_sgmd.dataset.tgt_textline_file_ph:tgt_textline_file})
 
   while True:
     try:
-      (_, loss, lr, summary_train, global_step,
+      (_, loss, lr, summary_train, global_step
        ) = (train_sgmd.session.run([
            train_sgmd.model.train_op,
            train_sgmd.model.loss,
            train_sgmd.model.learning_rate,
            train_sgmd.model.train_summary,
-           train_sgmd.model.global_step
+           train_sgmd.model.global_step,
        ]))
       tr_loss += loss
       summary_writer.add_summary(summary_train, global_step)
       # msg = 'batchstep, loss:%.4f, lr:%.4f.' % (loss, lr)
       # misc_utils.printinfo(msg, log_file)
       i += 1
+      if i % PARAM.batches_to_logging == 0:
+        msg = "        Minbatch %04d: loss:%.4f, duration:%ds." % (
+                i, loss, time.time()-minbatch_time,
+              )
+        minbatch_time = time.time()
+        misc_utils.printinfo(msg, log_file)
+      
     except tf.errors.OutOfRangeError:
       break
   tr_loss /= i
   e_time = time.time()
+  misc_utils.add_summary(summary_writer, epoch, "epoch_train_loss", tr_loss)
   return TrainOneEpochOutputs(average_loss=tr_loss,
                               duration=e_time-s_time,
                               learning_rate=lr)
@@ -97,20 +122,40 @@ def main(exp_dir,
   # Summary writer
   summary_writer = tf.summary.FileWriter(summary_dir, train_sgmd.graph)
   
+  # dataset textline files
+  train_set_textlinefile_src = "%s.%s" % (PARAM.train_prefix, PARAM.src)
+  train_set_textlinefile_tgt = "%s.%s" % (PARAM.train_prefix, PARAM.tgt)
+  val_set_textlinefile_src = "%s.%s" % (PARAM.val_prefix, PARAM.src)
+  val_set_textlinefile_tgt = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
+  train_set_textlinefile_src = misc_utils.add_rootdir(train_set_textlinefile_src)
+  train_set_textlinefile_tgt = misc_utils.add_rootdir(train_set_textlinefile_tgt)
+  val_set_textlinefile_src = misc_utils.add_rootdir(val_set_textlinefile_src)
+  val_set_textlinefile_tgt = misc_utils.add_rootdir(val_set_textlinefile_tgt)
+  
   # region validation before training
-  valOneEpochOutputs_prev = val_one_epoch(log_file, summary_writer, val_sgmd)
+  valOneEpochOutputs_prev = val_one_epoch(log_file,
+                                          val_set_textlinefile_src,
+                                          val_set_textlinefile_tgt,
+                                          summary_writer, None, val_sgmd)
   val_msg = "\n\nPRERUN AVG.LOSS %.4F  costime %ds\n" % (
       valOneEpochOutputs_prev.average_loss,
       valOneEpochOutputs_prev.duration)
   misc_utils.printinfo(val_msg, log_file)
+  
+  # add initial epoch_train_loss
+  misc_utils.add_summary(summary_writer, 0, "epoch_train_loss", valOneEpochOutputs_prev.average_loss)
 
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
   best_ckpt_name = None
   lr_halving_time = 0
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
+    misc_utils.printinfo("Epoch : %03d" % epoch)
     # train
-    trainOneEpochOutput = train_one_epoch(log_file, summary_writer, train_sgmd)
+    trainOneEpochOutput = train_one_epoch(log_file,
+                                          train_set_textlinefile_src,
+                                          train_set_textlinefile_tgt,
+                                          summary_writer, epoch, train_sgmd)
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
 
@@ -120,7 +165,9 @@ def main(exp_dir,
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
     tf.logging.set_verbosity(tf.logging.INFO)
-    valOneEpochOutputs = val_one_epoch(log_file, summary_writer, val_sgmd)
+    valOneEpochOutputs = val_one_epoch(log_file,
+                                       val_set_textlinefile_src, val_set_textlinefile_tgt,
+                                       summary_writer, epoch, val_sgmd)
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
     
 
@@ -133,10 +180,9 @@ def main(exp_dir,
                                   os.path.join(ckpt_dir, ckpt_name))
       valOneEpochOutputs_prev = valOneEpochOutputs
       best_ckpt_name = ckpt_name
-      msg = ("\nEpoch : %03d\n"
-             "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds.\n"
-             "        %s saved.") % (
-          epoch, trainOneEpochOutput.average_loss,
+      msg = ("        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds.\n"
+             "        ckpt(%s) saved.\n") % (
+          trainOneEpochOutput.average_loss,
           valOneEpochOutputs.average_loss,
           trainOneEpochOutput.learning_rate,
           trainOneEpochOutput.duration+valOneEpochOutputs.duration,
@@ -145,10 +191,9 @@ def main(exp_dir,
     else:
       train_sgmd.model.saver.restore(train_sgmd.session,
                                      os.path.join(ckpt_dir, best_ckpt_name))
-      msg = ("\nEpoch : %03d\n"
-             "        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds."
-             "        %s abandoned.") % (
-              epoch, trainOneEpochOutput.average_loss,
+      msg = ("        trloss:%.4f, valloss:%.4f, lr%e, duration:%ds."
+             "        ckpt(%s) abandoned.\n") % (
+              trainOneEpochOutput.average_loss,
               valOneEpochOutputs.average_loss,
               trainOneEpochOutput.learning_rate,
               trainOneEpochOutput.duration + valOneEpochOutputs.duration,
