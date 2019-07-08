@@ -12,7 +12,8 @@ from .utils import misc_utils
 
 class ValOneEpochOutputs(
     collections.namedtuple("ValOneEpochOutputs",
-                           ("average_loss", "duration"))):
+                           ("average_bleu", "average_ppl",
+                            "average_loss", "duration"))):
   pass
 
 def val_one_epoch(log_file, summary_writer, val_sgmd):
@@ -83,7 +84,7 @@ def main(exp_dir,
          summary_dir,
          ckpt_dir,
          log_file):  # train
-  # gmd : session, graph, model, dataset
+  # sgmd : session, graph, model, dataset
   train_sgmd = model_builder.build_train_model(log_file, ckpt_dir, PARAM.scope)
   val_sgmd = model_builder.build_val_model(log_file, ckpt_dir, PARAM.scope)
   # misc_utils.show_all_variables(train_sgmd.graph)
@@ -113,7 +114,7 @@ def main(exp_dir,
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
 
-    # validation
+    # validation (loss, ppl, bleu)
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
     tf.logging.set_verbosity(tf.logging.WARN)
     val_sgmd.model.saver.restore(val_sgmd.session,
@@ -121,6 +122,7 @@ def main(exp_dir,
     tf.logging.set_verbosity(tf.logging.INFO)
     valOneEpochOutputs = val_one_epoch(log_file, summary_writer, val_sgmd)
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
+    
 
     # save or abandon ckpt
     ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_lr%.4f_duration%ds' % (
@@ -177,4 +179,4 @@ def main(exp_dir,
 
 if __name__ == '__main__':
   tf.logging.set_verbosity(tf.logging.INFO)
-  main(*misc_utils.ini_task('train')) # generate log in '"train_"+config_name+".log"'
+  main(*misc_utils.ini_task('train')) # generate log in '"train_"+PARAM.config_name+".log"'
