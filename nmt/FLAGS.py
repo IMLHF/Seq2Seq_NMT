@@ -107,7 +107,7 @@ class BaseConfig(StaticKey):
   encoder_drop_rate = 0.2
   decoder_drop_rate = 0.2
   max_gradient_norm = 5.0 # gradient clip
-  batch_size = 1000
+  batch_size = 1024
   batches_to_logging = 100
   max_train = 0 # Limit on the size of training data (0: no limit).
   num_buckets = 5 # if > 1; Bucket sentence pairs by the length of their source sentence and target sentence.

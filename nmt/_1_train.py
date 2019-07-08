@@ -179,7 +179,7 @@ def main(exp_dir,
   best_ckpt_name = None
   lr_halving_time = 0
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
-    misc_utils.printinfo("Epoch : %03d" % epoch)
+    misc_utils.printinfo("Epoch : %03d" % epoch, log_file)
     # train
     trainOneEpochOutput = train_one_epoch(log_file,
                                           train_set_textlinefile_src,
@@ -221,7 +221,7 @@ def main(exp_dir,
     else:
       train_sgmd.model.saver.restore(train_sgmd.session,
                                      os.path.join(ckpt_dir, best_ckpt_name))
-      msg = ("        trloss:%.4f, valloss:%.4f, valppl:%.4f, lr:%.2e, duration:%ds."
+      msg = ("        trloss:%.4f, valloss:%.4f, valppl:%.4f, lr:%.2e, duration:%ds.\n"
              "        ckpt(%s) abandoned.\n") % (
               trainOneEpochOutput.average_loss,
               valOneEpochOutputs.average_loss,
