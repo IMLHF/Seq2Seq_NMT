@@ -149,6 +149,14 @@ def show_all_variables(graph):
     model_vars = tf.global_variables()
     # model_vars = tf.trainable_variables()
     show_variables(model_vars, graph)
+    
+
+def add_summary(summary_writer, global_step, tag, value):
+  """Add a new summary to the current summary_writer.
+  Useful to log things that are not part of the training graph, e.g., tag=BLEU.
+  """
+  summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
+  summary_writer.add_summary(summary, global_step)
 
 
 if __name__ == '__main__':
