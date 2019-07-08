@@ -55,7 +55,7 @@ class BaseConfig(StaticKey):
   '''
 
   residual = False # ?
-  time_major= True # Whether to use time-major mode for dynamic RNN.
+  time_major= False # Whether to use time-major mode for dynamic RNN.
   # num_embeddings_partitions = 0 # ?
 
   standard_output_attention = True # Only used in standard attention_architecture. Whether use attention as the cell output at each timestep.
@@ -66,10 +66,10 @@ class BaseConfig(StaticKey):
   start_halving_impr = 0.001
   lr_halving_rate = 0.5
   max_lr_halving_time = 4
-  
+
   optimizer = 'adam' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
-  learning_rate = 0.001 # Adam: 0.001 or 0.0001; SGD: 1.0.
+  learning_rate = 0.01 # Adam: 0.001 or 0.0001; SGD: 1.0.
 
   colocate_gradients_with_ops = True # params of tf.gradients() to parallel
   # endregion

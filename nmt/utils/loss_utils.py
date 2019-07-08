@@ -2,7 +2,7 @@ import tensorflow as tf
 from ..FLAGS import PARAM
 
 
-def cross_entropy_loss(logits, crossent, decoder_cell_outputs, target_output, target_sequence_length, batch_size):
+def masked_cross_entropy_loss(logits, crossent, decoder_cell_outputs, target_output, target_sequence_length, batch_size):
   """Compute optimization loss."""
   target_output = target_output
   if PARAM.time_major:
@@ -19,11 +19,13 @@ def cross_entropy_loss(logits, crossent, decoder_cell_outputs, target_output, ta
   # crossent [time, batch] if time_major else [batch, time]
   if PARAM.time_major:
     target_weights = tf.transpose(target_weights) # [time, batch]
-    loss = tf.reduce_sum(crossent * target_weights, axis=0) # [batch]
+    mat_loss = tf.multiply(crossent, target_weights) # [time, batch]
+    loss = tf.reduce_sum(mat_loss, axis=0) # [batch]
   else:
-    loss = tf.reduce_sum(crossent * target_weights, axis=-1) # [batch]
-
+    mat_loss = tf.multiply(crossent, target_weights) # [batch, time]
+    loss = tf.reduce_sum(mat_loss, axis=-1) # [batch]
   seq_lengths = tf.cast(target_sequence_length,dtype=loss.dtype)
-  loss = tf.reduce_mean(loss / seq_lengths)
+  # loss = tf.reduce_mean(loss / seq_lengths) # reduce_mean batch&time
+  loss = tf.reduce_sum(loss / seq_lengths) # reduce_sum batch && reduce_mean time
 
-  return loss
+  return mat_loss, loss

@@ -163,6 +163,38 @@ class BaseModel(object):
     self.saver = tf.train.Saver(self.save_variables,
                                 max_to_keep=PARAM.num_keep_ckpts)
 
+    # loss TODO
+    crossent = self._softmax_cross_entropy_loss(
+        self.logits, rnn_outputs_for_sampled_sotmax, self.target_out_id_seq)
+    # mat_loss:[time, batch] if time_major else [batch, time]
+    # loss: shape=()
+    self.mat_loss, self.loss = loss_utils.masked_cross_entropy_loss(self.logits,
+                                                                    crossent,
+                                                                    rnn_outputs_for_sampled_sotmax,
+                                                                    self.target_out_id_seq,
+                                                                    self.target_seq_lengths,
+                                                                    self.batch_size)
+    # val summary
+    # self.val_summary = tf.summary.merge(
+    #   [tf.summary.scalar('val_loss', self.loss)]
+    # )
+
+    # Count the number of predicted words for compute ppl.
+    self.word_count = tf.reduce_sum(
+      self.source_seq_lengths+self.target_seq_lengths)
+    self.predict_count = tf.reduce_sum(self.target_seq_lengths)
+
+    # ppl(perplexity)
+    '''
+    ppl_per_sentense = exp(sum[-log(y_est_i)]/num_word)
+    -log(y_est_i) = cross_entropy = -y_true*log(y_est)
+    so: ppl_per_sentense = exp(reduce_mean(cross_entropy,time_axis))
+    '''
+    if PARAM.time_major:
+      self.batch_avg_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, 0))) # reduce_sum batch
+    else:
+      self.batch_avg_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
+
     # infer end
     if self.mode == PARAM.MODEL_INFER_KEY:
       self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
@@ -170,29 +202,9 @@ class BaseModel(object):
       self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
       return
 
-    # loss TODO
-    crossent = self._softmax_cross_entropy_loss(
-        self.logits, rnn_outputs_for_sampled_sotmax, self.target_out_id_seq)
-    self.loss = loss_utils.cross_entropy_loss(self.logits,
-                                              crossent,
-                                              rnn_outputs_for_sampled_sotmax,
-                                              self.target_out_id_seq,
-                                              self.target_seq_lengths,
-                                              self.batch_size)
-
-    # val summary
-    # self.val_summary = tf.summary.merge(
-    #   [tf.summary.scalar('val_loss', self.loss)]
-    # )
-    
     # val end
     if self.mode == PARAM.MODEL_VALIDATE_KEY:
       return
-
-    # Count the number of predicted words for compute ppl.
-    self.word_count = tf.reduce_sum(
-      self.source_seq_lengths+self.target_seq_lengths)
-    self.predict_count = tf.reduce_sum(self.target_seq_lengths)
 
     # region apply gradient
     # Gradients and SGD update operation for training the model.
@@ -236,7 +248,7 @@ class BaseModel(object):
     if PARAM.num_sampled_softmax > 0:
 
       is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
-      
+
       inputs = rnn_outputs_for_sampled_sotmax
       if is_sequence:
         labels = tf.reshape(labels, [-1, 1]) # [time*batch, 1] if time_major else [batch*time, 1]
@@ -260,9 +272,11 @@ class BaseModel(object):
 
     else:
       # print(labels.get_shape().as_list(),logits.get_shape().as_list())
+      # logits :[batch, time, vocab_num]
       crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
           labels=labels, logits=logits)
       # print(crossent.get_shape().as_list())
+      # crossent :[batch, time]
     return crossent
 
   @abc.abstractmethod
