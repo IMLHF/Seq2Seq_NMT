@@ -97,9 +97,9 @@ def get_batch_inputs_form_dataset(log_file,
       num_parallel_calls=PARAM.num_parallel_calls)
   src_tgt_dataset = src_tgt_dataset.prefetch(output_buffer_size)
 
-  # Filter zero length input sequences.
-  src_tgt_dataset = src_tgt_dataset.filter(
-      lambda src, tgt: tf.logical_and(tf.size(src) > 0, tf.size(tgt) > 0))
+  # # Filter zero length input sequences.
+  # src_tgt_dataset = src_tgt_dataset.filter(
+  #     lambda src, tgt: tf.logical_and(tf.size(src) > 0, tf.size(tgt) > 0))
 
   if PARAM.src_max_len:
     src_tgt_dataset = src_tgt_dataset.map(

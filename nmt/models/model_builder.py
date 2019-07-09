@@ -142,17 +142,19 @@ def build_infer_model(log_file, ckpt_dir, scope='infer'):
   model_creator = _get_model_creator()
   graph = tf.Graph()
   with graph.as_default(), tf.container(scope):
-    src_file = "%s.%s" % (PARAM.val_prefix, PARAM.src)
-    tgt_file = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
-    src_file = misc_utils.add_rootdir(src_file)
-    tgt_file = misc_utils.add_rootdir(tgt_file)
+    # src_file = "%s.%s" % (PARAM.val_prefix, PARAM.src)
+    # tgt_file = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
+    # src_file = misc_utils.add_rootdir(src_file)
+    # tgt_file = misc_utils.add_rootdir(tgt_file)
+    src_file_ph = tf.placeholder(shape=(), dtype=tf.string)
+    tgt_file_ph = tf.placeholder(shape=(), dtype=tf.string)
     vocab_tables = vocab_utils.create_vocab_word2id_tables(log_file) # word->id
     src_vocab_table, tgt_vocab_table, src_table_size, tgt_table_size = vocab_tables
 
     infer_set = dataset_utils.get_batch_inputs_form_dataset(
         log_file,
-        src_file,
-        tgt_file,
+        src_file_ph,
+        tgt_file_ph,
         src_vocab_table,
         tgt_vocab_table,
         False,
@@ -178,7 +180,9 @@ def build_infer_model(log_file, ckpt_dir, scope='infer'):
     # restore model
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
     if ckpt and ckpt.model_checkpoint_path:
-      infer_model.saver.restore(infer_model, ckpt.model_checkpoint_path)
+      tf.logging.set_verbosity(tf.logging.WARN)
+      infer_model.saver.restore(infer_sess, ckpt.model_checkpoint_path)
+      tf.logging.set_verbosity(tf.logging.INFO)
     else:
       msg = 'Checkpoint not found. code:fau598942trghhi78kj'
       tf.logging.fatal(msg)

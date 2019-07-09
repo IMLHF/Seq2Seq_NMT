@@ -59,7 +59,7 @@ class BaseModel(object):
     self.target_out_id_seq = target_out_id_seq # [baatch, time]
     self.source_seq_lengths = source_seq_lengths # [batch]
     self.target_seq_lengths = target_seq_lengths # [batch]
-    self.mode = mode
+    self.mode = mode # train: get loss. val: get loss, ppl. infer: get bleu etc.
 
     src_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.src)
     tgt_vocab_file = "%s.%s" % (PARAM.vocab_prefix, PARAM.tgt)
@@ -163,6 +163,14 @@ class BaseModel(object):
     self.saver = tf.train.Saver(self.save_variables,
                                 max_to_keep=PARAM.num_keep_ckpts)
 
+    # infer end
+    if self.mode == PARAM.MODEL_INFER_KEY:
+      # sample_words for decoding
+      self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
+          self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
+      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
+      return
+
     # loss TODO
     crossent = self._softmax_cross_entropy_loss(
         self.logits, rnn_outputs_for_sampled_sotmax, self.target_out_id_seq)
@@ -194,15 +202,6 @@ class BaseModel(object):
       self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, 0))) # reduce_sum batch
     else:
       self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
-
-    # sample_words for decoding
-    self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
-        self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
-    self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
-
-    # infer end
-    if self.mode == PARAM.MODEL_INFER_KEY:
-      return
 
     # val end
     if self.mode == PARAM.MODEL_VALIDATE_KEY:

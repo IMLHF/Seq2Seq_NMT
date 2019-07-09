@@ -14,7 +14,7 @@ def _single_rnn_cell(unit_type, num_units, forget_bias, droprate, mode,
                                        initializer=tf.contrib.layers.xavier_initializer(),
                                        # state_is_tuple=True,
                                        activation=activation_fun,
-                                       # use_peepholes=True,
+                                       use_peepholes=True,
                                        forget_bias=forget_bias)
   elif unit_type == "gru":
     single_cell = contrib.rnn.GRUCell(num_units=num_units,
