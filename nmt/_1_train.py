@@ -1,4 +1,5 @@
 import collections
+import codecs
 import os
 # import sys
 import tensorflow as tf
@@ -14,16 +15,24 @@ from .utils import misc_utils
 
 class ValOneEpochOutputs(
     collections.namedtuple("ValOneEpochOutputs",
-                           ("average_bleu", "average_ppl",
+                           ("val_scores", "average_ppl",
                             "average_loss", "duration"))):
   pass
 
-def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
+def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
                   summary_writer, epoch, val_sgmd):
+  """
+  exp_dir : $PARAM.root_dir/exp/$PARAM.config_name
+  """
   val_loss = 0 # total loss
+  total_ppl = 0
   data_len = 0 # batch_num*batch_size:dataset records num
   # total_predict_len, loss_sum_batchandtime = 0, 0.0 # for ppl2 at github:tensorflow/nmt
-  total_ppl = 0
+
+  trans_file = os.path.join(exp_dir, 'val_set_translate_result_iter%04d.txt' % epoch)
+  trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
+  trans_f.write("")  # Write empty string to ensure file is created.
+
   s_time = time.time()
   val_sgmd.session.run(val_sgmd.dataset.initializer,
                        feed_dict={val_sgmd.dataset.src_textline_file_ph: src_textline_file,
@@ -32,31 +41,47 @@ def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
   while True:
     try:
       (loss, # reduce_mean batch&time
+       batch_sum_ppl, # reduce_sum batch && reduce_mean time
+       current_bs,
        #  predict_len, # for ppl2
        #  mat_loss, # for ppl2
-       batch_sum_ppl, # reduce_sum batch && reduce_mean time
        # val_summary,
-       current_bs,
+       sample_words, # words list, text, dim:[beam_width, batch_size, words] if beam_search else [batch_size, words]
+       #  mat_loss,
        ) = (val_sgmd.session.run(
            [
             val_sgmd.model.loss,
+            val_sgmd.model.batch_sum_ppl,
+            val_sgmd.model.batch_size,
             # val_sgmd.model.predict_count, # for ppl2
             # val_sgmd.model.mat_loss, # for ppl2
-            val_sgmd.model.batch_sum_ppl,
             # val_sgmd.model.val_summary,
-            val_sgmd.model.batch_size,
+            val_sgmd.model.sample_words,
+            # val_sgmd.model.logits,
             ]))
       val_loss += loss
-      data_len += current_bs
       total_ppl += batch_sum_ppl
+      data_len += current_bs
 
       # for ppl2
       # print(np.shape(mat_loss))
       # total_predict_len += predict_len
       # loss_sum_batchandtime += np.sum(mat_loss)
 
+      # translated text
+      if PARAM.infer_mode == 'beam_search':
+        sample_words = np.array(sample_words[0]) # [batch_size, words]
+      assert current_bs == sample_words.shape[0], 'batch_size exception.'
+      for sentence_id in range(current_bs):
+        translation = misc_utils.get_translation_text_from_samplewords(sample_words,
+                                                                       sentence_id,
+                                                                       eos=PARAM.eos,
+                                                                       subword_option=PARAM.subword_option)
+        trans_f.write((translation+b"\n").decode("utf-8"))
     except tf.errors.OutOfRangeError:
       break
+
+  trans_f.close()
 
   # ppl
   avg_ppl = total_ppl/data_len # reduce_mean batch&time
@@ -68,16 +93,23 @@ def val_one_epoch(log_file, src_textline_file, tgt_textline_file,
   # avg_loss
   avg_val_loss = val_loss / data_len
 
-  # bleu
-  # TODO
+  # evaluation scores like bleu, rouge, accuracy etc.
+  eval_scores = {}
+  for metric in PARAM.metrics:
+    eval_scores[metric] = eval_utils.evalute(
+      ref_textline_file=tgt_textline_file,
+      trans_textline_file=trans_file,
+      metric=metric,
+      subword_option=PARAM.subword_option
+    )
+
+  # summary
+  misc_utils.add_summary(summary_writer, epoch, "epoch_val_loss", avg_val_loss)
 
   e_time = time.time()
-  misc_utils.add_summary(summary_writer, epoch, "epoch_val_loss", avg_val_loss)
-  if epoch: # if epoch=0, pre_run not show msg.
-    misc_utils.printinfo('        validation done, duration %ds' % (e_time-s_time), log_file)
   return ValOneEpochOutputs(average_loss=avg_val_loss,
                             duration=e_time-s_time,
-                            average_bleu=None,
+                            val_scores=eval_scores,
                             average_ppl=avg_ppl)
 
 
@@ -116,7 +148,7 @@ def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
       # misc_utils.printinfo(msg, log_file)
       i += 1
       if i % PARAM.batches_to_logging == 0:
-        msg = "        Minbatch %04d: loss:%.4f, duration:%ds." % (
+        msg = "    Minbatch %04d: loss:%.4f, duration:%ds." % (
                 i, tr_loss/data_len, time.time()-minbatch_time,
               )
         minbatch_time = time.time()
@@ -161,14 +193,15 @@ def main(exp_dir,
   val_set_textlinefile_tgt = misc_utils.add_rootdir(val_set_textlinefile_tgt)
 
   # region validation before training
-  valOneEpochOutputs_prev = val_one_epoch(log_file,
+  valOneEpochOutputs_prev = val_one_epoch(exp_dir, log_file,
                                           val_set_textlinefile_src,
                                           val_set_textlinefile_tgt,
-                                          summary_writer, None, val_sgmd)
-  val_msg = "\n\nPRERUN AVG.LOSS %.4F, AVG.PPL %.4F, costime %ds\n" % (
-      valOneEpochOutputs_prev.average_loss,
-      valOneEpochOutputs_prev.average_ppl,
-      valOneEpochOutputs_prev.duration)
+                                          summary_writer, 0, val_sgmd)
+  # score_smg: str(" BLEU:XX.XXXX, ROUGE:X.XXXX,")
+  scores_msg = eval_utils.scores_msg(valOneEpochOutputs_prev.val_scores, upper_case=True)
+  val_msg = "\n\nPRERUN> LOSS:%.4F, PPL:%.4F," % (valOneEpochOutputs_prev.average_loss,
+                                                  valOneEpochOutputs_prev.average_ppl) + \
+      scores_msg + " cost_time %ds\n" % valOneEpochOutputs_prev.duration
   misc_utils.printinfo(val_msg, log_file)
 
   # add initial epoch_train_loss
@@ -188,13 +221,13 @@ def main(exp_dir,
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
 
-    # validation (loss, ppl, bleu)
+    # validation (loss, ppl, scores(bleu...))
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
     tf.logging.set_verbosity(tf.logging.WARN)
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
     tf.logging.set_verbosity(tf.logging.INFO)
-    valOneEpochOutputs = val_one_epoch(log_file,
+    valOneEpochOutputs = val_one_epoch(exp_dir, log_file,
                                        val_set_textlinefile_src, val_set_textlinefile_tgt,
                                        summary_writer, epoch, val_sgmd)
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
@@ -209,27 +242,39 @@ def main(exp_dir,
                                   os.path.join(ckpt_dir, ckpt_name))
       valOneEpochOutputs_prev = valOneEpochOutputs
       best_ckpt_name = ckpt_name
-      msg = ("        trloss:%.4f, valloss:%.4f, valppl:%.4f, lr:%.2e, duration:%ds.\n"
-             "        ckpt(%s) saved.\n") % (
+      msg = ("    Train> loss:%.4f, lr:%.2e, duration:%ds.\n"
+             "    Val> loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n"
+             "    ckpt(%s) saved.\n") % (
           trainOneEpochOutput.average_loss,
+          trainOneEpochOutput.learning_rate,
+          trainOneEpochOutput.duration,
           valOneEpochOutputs.average_loss,
           valOneEpochOutputs.average_ppl,
-          trainOneEpochOutput.learning_rate,
-          trainOneEpochOutput.duration+valOneEpochOutputs.duration,
-          best_ckpt_name,
+          valOneEpochOutputs.val_scores["bleu"],
+          valOneEpochOutputs.val_scores["rouge"],
+          valOneEpochOutputs.val_scores["accuracy"],
+          valOneEpochOutputs.duration,
+          ckpt_name,
       )
     else:
+      tf.logging.set_verbosity(tf.logging.WARN)
       train_sgmd.model.saver.restore(train_sgmd.session,
                                      os.path.join(ckpt_dir, best_ckpt_name))
-      msg = ("        trloss:%.4f, valloss:%.4f, valppl:%.4f, lr:%.2e, duration:%ds.\n"
-             "        ckpt(%s) abandoned.\n") % (
-              trainOneEpochOutput.average_loss,
-              valOneEpochOutputs.average_loss,
-              valOneEpochOutputs.average_ppl,
-              trainOneEpochOutput.learning_rate,
-              trainOneEpochOutput.duration + valOneEpochOutputs.duration,
-              best_ckpt_name,
-            )
+      tf.logging.set_verbosity(tf.logging.INFO)
+      msg = ("    Train> loss:%.4f, lr:%.2e, duration:%ds.\n"
+             "    Val> loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n"
+             "    ckpt(%s) abandoned.\n") % (
+          trainOneEpochOutput.average_loss,
+          trainOneEpochOutput.learning_rate,
+          trainOneEpochOutput.duration,
+          valOneEpochOutputs.average_loss,
+          valOneEpochOutputs.average_ppl,
+          valOneEpochOutputs.val_scores["bleu"],
+          valOneEpochOutputs.val_scores["rouge"],
+          valOneEpochOutputs.val_scores["accuracy"],
+          valOneEpochOutputs.duration,
+          ckpt_name,
+      )
     # prt
     misc_utils.printinfo(msg, log_file)
 

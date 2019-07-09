@@ -195,11 +195,13 @@ class BaseModel(object):
     else:
       self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
 
+    # sample_words for decoding
+    self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
+        self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
+    self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
+
     # infer end
     if self.mode == PARAM.MODEL_INFER_KEY:
-      self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
-          self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
-      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
       return
 
     # val end
@@ -483,7 +485,7 @@ class Model(BaseModel):
         # Dynamic decoding
         decoder_outputs, final_context_state, _ = contrib.seq2seq.dynamic_decode(
             decoder,
-            maximum_iterations=max_rnn_iterations if self.mode == PARAM.MODEL_INFER_KEY else None,
+            maximum_iterations=max_rnn_iterations,
             output_time_major=PARAM.time_major,
             swap_memory=True,
             scope=decoder_scope
@@ -526,12 +528,19 @@ class Model(BaseModel):
             scope=decoder_scope
         )
 
+        # if BasicDecoder->output_layer=self.output_layer, cannot use sampled_sotmax
         rnn_outputs_for_sampled_sotmax = decoder_outputs.rnn_output
+
+        # if BasicDecoder->output_layer=None
         logits = self.output_layer(decoder_outputs.rnn_output)
         sample_id = tf.argmax(logits, axis=-1, name='get_sample_id', output_type=tf.int32)
-        sample_id2 = decoder_outputs.sample_id # TODO remove
-        with tf.control_dependencies([tf.assert_equal(sample_id,sample_id2)]):
-          sample_id = tf.identity(sample_id2)
+
+        # if BasicDecoder->output_layer=self.output_layer
+        # logits = decoder_outputs.rnn_output
+        # sample_id2 = decoder_outputs.sample_id #
+
+        # with tf.control_dependencies([tf.assert_equal(sample_id,sample_id2)]): # never equal
+        #   sample_id = tf.identity(sample_id2)
 
       # self._debug=logits.get_shape().as_list()
       # print(self._debug)
