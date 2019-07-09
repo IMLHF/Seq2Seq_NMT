@@ -1,4 +1,5 @@
 from distutils import version
+import collections
 import os
 import sys
 import tensorflow as tf
@@ -149,14 +150,30 @@ def show_all_variables(graph):
     model_vars = tf.global_variables()
     # model_vars = tf.trainable_variables()
     show_variables(model_vars, graph)
-    
+
 
 def add_summary(summary_writer, global_step, tag, value):
-  """Add a new summary to the current summary_writer.
+  """
+  Add a new summary to the current summary_writer.
   Useful to log things that are not part of the training graph, e.g., tag=BLEU.
   """
   summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
   summary_writer.add_summary(summary, global_step)
+
+
+def get_translation_text_from_samplewords(sample_words, sentence_id, eos, subword_option):
+  if eos:
+    eos = eos.encode("utf-8")
+  sentence = sample_words[sentence_id].tolist()
+
+  # If there is an eos symbol in outputs, cut them at that position.
+  if eos and eos in sentence:
+    sentence = sentence[:sentence.index(eos)]
+
+  if (not hasattr(sentence, "__len__") and  # for numpy array
+          not isinstance(sentence, collections.Iterable)):
+    sentence = [sentence]
+  return b" ".join(sentence)
 
 
 if __name__ == '__main__':
