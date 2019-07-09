@@ -99,6 +99,7 @@ def build_val_model(log_file, ckpt_dir, scope='validation'):
         tgt_file_ph,
         src_vocab_table,
         tgt_vocab_table,
+        False
     )
 
     val_model = model_creator(
@@ -153,6 +154,7 @@ def build_infer_model(log_file, ckpt_dir, scope='infer'):
         tgt_file,
         src_vocab_table,
         tgt_vocab_table,
+        False
     )
 
     infer_model = model_creator(

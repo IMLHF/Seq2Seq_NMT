@@ -66,14 +66,15 @@ def get_batch_inputs_form_dataset(log_file,
                                   source_textline_file,
                                   target_textline_file,
                                   source_vocab_table,
-                                  target_vocab_table):
+                                  target_vocab_table,
+                                  shuffle=True):
 
   '''
   source_vocab_table: word->id
   '''
   src_dataset = tf.data.TextLineDataset(source_textline_file)
   tgt_dataset = tf.data.TextLineDataset(target_textline_file)
-  
+
   output_buffer_size = PARAM.output_buffer_size
   if not PARAM.output_buffer_size:
     output_buffer_size = PARAM.batch_size * 1000
@@ -85,15 +86,16 @@ def get_batch_inputs_form_dataset(log_file,
 
   src_tgt_dataset = tf.data.Dataset.zip((src_dataset, tgt_dataset))
 
-  src_tgt_dataset = src_tgt_dataset.shuffle(
-      buffer_size=output_buffer_size, reshuffle_each_iteration=PARAM.reshuffle_each_iteration)
+  if shuffle:
+    src_tgt_dataset = src_tgt_dataset.shuffle(
+        buffer_size=output_buffer_size, reshuffle_each_iteration=PARAM.reshuffle_each_iteration)
 
   src_tgt_dataset = src_tgt_dataset.map(
       lambda src, tgt: (
           tf.string_split([src]).values, tf.string_split([tgt]).values),
       num_parallel_calls=PARAM.num_parallel_calls)
   src_tgt_dataset = src_tgt_dataset.prefetch(output_buffer_size)
-  
+
   # Filter zero length input sequences.
   src_tgt_dataset = src_tgt_dataset.filter(
       lambda src, tgt: tf.logical_and(tf.size(src) > 0, tf.size(tgt) > 0))
