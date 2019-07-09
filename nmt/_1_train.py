@@ -20,22 +20,20 @@ class ValOneEpochOutputs(
   pass
 
 def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
-                  summary_writer, epoch, val_sgmd):
+                  summary_writer, epoch, val_sgmd, infer_sgmd):
   """
   exp_dir : $PARAM.root_dir/exp/$PARAM.config_name
   """
+  s_time = time.time()
+
+  # region val_model to calculate loss, ppl
   val_loss = 0 # total loss
   total_ppl = 0
   data_len = 0 # batch_num*batch_size:dataset records num
   # total_predict_len, loss_sum_batchandtime = 0, 0.0 # for ppl2 at github:tensorflow/nmt
 
-  trans_file = os.path.join(exp_dir, 'val_set_translate_result_iter%04d.txt' % epoch)
-  trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
-  trans_f.write("")  # Write empty string to ensure file is created.
-
-  s_time = time.time()
   val_sgmd.session.run(val_sgmd.dataset.initializer,
-                       feed_dict={val_sgmd.dataset.src_textline_file_ph: src_textline_file,
+                       feed_dict={val_sgmd.dataset.src_textline_file_ph:src_textline_file,
                                   val_sgmd.dataset.tgt_textline_file_ph:tgt_textline_file})
 
   while True:
@@ -46,7 +44,6 @@ def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
        #  predict_len, # for ppl2
        #  mat_loss, # for ppl2
        # val_summary,
-       sample_words, # words list, text, dim:[beam_width, batch_size, words] if beam_search else [batch_size, words]
        #  mat_loss,
        ) = (val_sgmd.session.run(
            [
@@ -56,7 +53,6 @@ def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
             # val_sgmd.model.predict_count, # for ppl2
             # val_sgmd.model.mat_loss, # for ppl2
             # val_sgmd.model.val_summary,
-            val_sgmd.model.sample_words,
             # val_sgmd.model.logits,
             ]))
       val_loss += loss
@@ -67,6 +63,35 @@ def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
       # print(np.shape(mat_loss))
       # total_predict_len += predict_len
       # loss_sum_batchandtime += np.sum(mat_loss)
+    except tf.errors.OutOfRangeError:
+      break
+
+  # ppl
+  avg_ppl = total_ppl/data_len # reduce_mean batch&time
+
+  # ppl2
+  # avg_ppl2 = eval_utils.calc_ppl(loss_sum_batchandtime, total_predict_len)
+  # print('debug——ppl2: %d' % avg_ppl2)
+
+  # avg_loss
+  avg_val_loss = val_loss / data_len
+  # endregion val_model
+
+  # region infer_mode to calculate bleu, rouge, accuracy
+  trans_file = os.path.join(exp_dir, 'val_set_translate_result_iter%04d.txt' % epoch)
+  trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
+  trans_f.write("")  # Write empty string to ensure file is created.
+
+  infer_sgmd.session.run(infer_sgmd.dataset.initializer,
+                         feed_dict={infer_sgmd.dataset.src_textline_file_ph: src_textline_file,
+                                    infer_sgmd.dataset.tgt_textline_file_ph: tgt_textline_file})
+  while True:
+    try:
+      (sample_words, # words list, text, dim:[beam_width, batch_size, words] if beam_search else [batch_size, words]
+       ) = (infer_sgmd.session.run(
+           [
+            infer_sgmd.model.sample_words,
+            ]))
 
       # translated text
       if PARAM.infer_mode == 'beam_search':
@@ -83,16 +108,6 @@ def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
 
   trans_f.close()
 
-  # ppl
-  avg_ppl = total_ppl/data_len # reduce_mean batch&time
-
-  # ppl2
-  # avg_ppl2 = eval_utils.calc_ppl(loss_sum_batchandtime, total_predict_len)
-  # print('debug——ppl2: %d' % avg_ppl2)
-
-  # avg_loss
-  avg_val_loss = val_loss / data_len
-
   # evaluation scores like bleu, rouge, accuracy etc.
   eval_scores = {}
   for metric in PARAM.metrics:
@@ -102,6 +117,7 @@ def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
       metric=metric,
       subword_option=PARAM.subword_option
     )
+  # endregion infer_model
 
   # summary
   misc_utils.add_summary(summary_writer, epoch, "epoch_val_loss", avg_val_loss)
@@ -172,6 +188,7 @@ def main(exp_dir,
   # sgmd : session, graph, model, dataset
   train_sgmd = model_builder.build_train_model(log_file, ckpt_dir, PARAM.scope)
   val_sgmd = model_builder.build_val_model(log_file, ckpt_dir, PARAM.scope)
+  infer_sgmd = model_builder.build_infer_model(log_file, ckpt_dir, PARAM.scope)
   # misc_utils.show_all_variables(train_sgmd.graph)
   misc_utils.show_variables(train_sgmd.model.save_variables, train_sgmd.graph)
 
@@ -196,7 +213,8 @@ def main(exp_dir,
   valOneEpochOutputs_prev = val_one_epoch(exp_dir, log_file,
                                           val_set_textlinefile_src,
                                           val_set_textlinefile_tgt,
-                                          summary_writer, 0, val_sgmd)
+                                          summary_writer, 0,
+                                          val_sgmd, infer_sgmd)
   # score_smg: str(" BLEU:XX.XXXX, ROUGE:X.XXXX,")
   scores_msg = eval_utils.scores_msg(valOneEpochOutputs_prev.val_scores, upper_case=True)
   val_msg = "\n\nPRERUN> LOSS:%.4F, PPL:%.4F," % (valOneEpochOutputs_prev.average_loss,
@@ -229,7 +247,7 @@ def main(exp_dir,
     tf.logging.set_verbosity(tf.logging.INFO)
     valOneEpochOutputs = val_one_epoch(exp_dir, log_file,
                                        val_set_textlinefile_src, val_set_textlinefile_tgt,
-                                       summary_writer, epoch, val_sgmd)
+                                       summary_writer, epoch, val_sgmd, infer_sgmd)
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
 
 
