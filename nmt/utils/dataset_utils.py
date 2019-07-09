@@ -67,7 +67,8 @@ def get_batch_inputs_form_dataset(log_file,
                                   target_textline_file,
                                   source_vocab_table,
                                   target_vocab_table,
-                                  shuffle=True):
+                                  shuffle=True,
+                                  bucket=True):
 
   '''
   source_vocab_table: word->id
@@ -147,7 +148,7 @@ def get_batch_inputs_form_dataset(log_file,
         num_parallel_calls=PARAM.num_parallel_calls)
   src_tgt_dataset = src_tgt_dataset.prefetch(output_buffer_size)
 
-  if PARAM.num_buckets > 1:
+  if PARAM.num_buckets > 1 and bucket:
     # Bucket sentence pairs by the length of their source sentence and target sentence.
     src_tgt_dataset = _bucket_dataset_by_length(src_tgt_dataset, PARAM.batch_size,
                                                 src_eos_id, tgt_eos_id)
