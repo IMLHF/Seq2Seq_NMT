@@ -88,14 +88,17 @@ def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
   while True:
     try:
       (sample_words, # words list, text, dim:[beam_width, batch_size, words] if beam_search else [batch_size, words]
+       current_bs,
        ) = (infer_sgmd.session.run(
            [
             infer_sgmd.model.sample_words,
+            infer_sgmd.model.batch_size,
             ]))
 
       # translated text
       if PARAM.infer_mode == 'beam_search':
         sample_words = np.array(sample_words[0]) # [batch_size, words]
+      print(current_bs, sample_words.shape[0])
       assert current_bs == sample_words.shape[0], 'batch_size exception.'
       for sentence_id in range(current_bs):
         translation = misc_utils.get_translation_text_from_samplewords(sample_words,
@@ -187,10 +190,10 @@ def main(exp_dir,
          log_file):  # train
   # sgmd : session, graph, model, dataset
   train_sgmd = model_builder.build_train_model(log_file, ckpt_dir, PARAM.scope)
+  misc_utils.show_variables(train_sgmd.model.save_variables, train_sgmd.graph)
   val_sgmd = model_builder.build_val_model(log_file, ckpt_dir, PARAM.scope)
   infer_sgmd = model_builder.build_infer_model(log_file, ckpt_dir, PARAM.scope)
   # misc_utils.show_all_variables(train_sgmd.graph)
-  misc_utils.show_variables(train_sgmd.model.save_variables, train_sgmd.graph)
 
   # finalize graph
   train_sgmd.graph.finalize()
@@ -244,6 +247,8 @@ def main(exp_dir,
     tf.logging.set_verbosity(tf.logging.WARN)
     val_sgmd.model.saver.restore(val_sgmd.session,
                                  ckpt.model_checkpoint_path)
+    infer_sgmd.model.saver.restore(infer_sgmd.session,
+                                   ckpt.model_checkpoint_path)
     tf.logging.set_verbosity(tf.logging.INFO)
     valOneEpochOutputs = val_one_epoch(exp_dir, log_file,
                                        val_set_textlinefile_src, val_set_textlinefile_tgt,
