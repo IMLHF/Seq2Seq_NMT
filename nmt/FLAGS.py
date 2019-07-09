@@ -26,12 +26,12 @@ class BaseConfig(StaticKey):
   num_parallel_calls = 8
 
   # region network
-  encoder_num_units = 32
-  decoder_num_units = 32
-  encoder_num_layers = 2  # Encoder depth, equal to num_layers if None.
-  decoder_num_layers = 2  # Decoder depth, equal to num_layers if None.
-  encoder_layer_start_residual = 3
-  decoder_layer_start_residual = 3
+  encoder_num_units = 512
+  decoder_num_units = 512
+  encoder_num_layers = 2
+  decoder_num_layers = 4
+  encoder_layer_start_residual = 2
+  decoder_layer_start_residual = 2
 
   model_type = 'vanilla'
   '''
@@ -47,7 +47,7 @@ class BaseConfig(StaticKey):
   luong | scaled_luong | bahdanau | normed_bahdanau or set to '' for no attention
   '''
 
-  encoder_type = 'uni'
+  encoder_type = 'bi'
   '''
   uni | bi
   For bi, we build num_encoder_layers/2 bi-directional layers.
@@ -64,12 +64,12 @@ class BaseConfig(StaticKey):
 
   # regiion optimizer & lr halving & stop criterion
   start_halving_impr = 0.001
-  lr_halving_rate = 0.5
-  max_lr_halving_time = 4
+  lr_halving_rate = 0.7
+  max_lr_halving_time = 8
 
-  optimizer = 'adam' # 'sgd' or 'adam'
+  optimizer = 'sgd' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
-  learning_rate = 0.01 # Adam: 0.001 or 0.0001; SGD: 1.0.
+  learning_rate = 1.0 # Adam: 0.001 or 0.0001; SGD: 1.0.
 
   colocate_gradients_with_ops = True # params of tf.gradients() to parallel
   # endregion
@@ -97,33 +97,35 @@ class BaseConfig(StaticKey):
   check_special_token = True # ?
   src_max_len = 50
   tgt_max_len = 50
+
   src_max_len_infer = None
   tgt_max_len_infer = None
   tgt_max_len_infer_factor = 2.0 # tgt_max_len_infer = src_seq_max_len*tgt_max_len_infer_factor
+
   encoder_unit_type = 'lstm'
   decoder_unit_type = 'lstm' # lstm | gru | layer_norm_lstm | nas
   encoder_forget_bias = 1.0
   decoder_forget_bias = 1.0
-  encoder_drop_rate = 0.2
-  decoder_drop_rate = 0.2
+  encoder_drop_rate = 0.5
+  decoder_drop_rate = 0.5
   max_gradient_norm = 5.0 # gradient clip
-  batch_size = 1024
+  batch_size = 256
   batches_to_logging = 100
   max_train = 0 # Limit on the size of training data (0: no limit).
   num_buckets = 5 # if > 1; Bucket sentence pairs by the length of their source sentence and target sentence.
   num_sampled_softmax = 0 # Use sampled_softmax_loss if > 0, else full softmax loss.
-  subword_option = '' # ?
+  subword_option = None # method format sample_words to text, not use
 
   # Misc
   num_gpus = 1
-  metrics = 'bleu,rouge,accuracy'.split(',') # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
+  metrics = ["bleu", "rouge", "accuracy"]  # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
   steps_per_external_eval = None
   scope = None # model scope
   avg_ckpts = False # Average the last N checkpoints for external evaluation. N can be controlled by setting --num_keep_ckpts.
 
   # inference
   infer_mode = 'greedy' # "greedy", "sample", "beam_search"
-  beam_width = 0 # beam width for beam search decoder. If 0, use standard decoder with greedy helper.
+  beam_width = 3 # beam width for beam search decoder. If 0, use standard decoder with greedy helper.
   length_penalty_weight = 0.0 # Length penalty for beam search.
   coverage_penalty_weight = 0.0 # Coverage penalty for beam search.
   sampling_temperature = 0.0
@@ -142,7 +144,7 @@ class BaseConfig(StaticKey):
   verbose_print_hparams = True
 
   start_epoch = 1
-  max_epoch = 50
+  max_epoch = 100
 
   #################
   # Extra
