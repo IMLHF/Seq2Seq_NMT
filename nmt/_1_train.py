@@ -99,11 +99,12 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
             infer_sgmd.model.batch_size,
             ]))
 
+      # print(current_bs, sample_words.shape)
       # translated text
       if PARAM.infer_mode == 'beam_search':
-        sample_words = np.array(sample_words[0]) # [batch_size, words]
-      # print(current_bs, sample_words.shape[0])
-      assert current_bs == sample_words.shape[0], 'batch_size exception.'
+        sample_words = np.array(sample_words[:,:,0]) # [words, batch_size] if time_major else [batch_size, words]
+      assert current_bs == (
+          sample_words.shape[1] if PARAM.time_major else sample_words.shape[0]), 'batch_size exception.'
       for sentence_id in range(current_bs):
         translation = misc_utils.get_translation_text_from_samplewords(sample_words,
                                                                        sentence_id,

@@ -162,9 +162,16 @@ def add_summary(summary_writer, global_step, tag, value):
 
 
 def get_translation_text_from_samplewords(sample_words, sentence_id, eos, subword_option):
+  """
+  sample_words: [words, batch] if time_major else [batch, words]
+  """
   if eos:
     eos = eos.encode("utf-8")
-  sentence = sample_words[sentence_id].tolist()
+
+  if PARAM.time_major:
+    sentence = sample_words[:,sentence_id].tolist()
+  else:
+    sentence = sample_words[sentence_id].tolist()
 
   # If there is an eos symbol in outputs, cut them at that position.
   if eos and eos in sentence:
