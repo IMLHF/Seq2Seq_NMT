@@ -16,7 +16,7 @@ def main(_):
                 summary_dir=summary_dir,
                 ckpt_dir=ckpt_dir,
                 log_file=log_file)
-  
+
   _2_test.main(exp_dir=exp_dir,
                log_dir=log_dir,
                summary_dir=summary_dir,

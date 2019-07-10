@@ -76,6 +76,9 @@ def print_hparams(short=True):
   from .. import FLAGS
   self_dict = FLAGS.PARAM.__dict__
   self_dict_keys = self_dict.keys()
+  print('Short hparams:')
+  [print("%s:%s" % (key, self_dict[key])) for key in sorted(self_dict_keys)]
+  print('--------------------------\n')
   if not short:
     print('FLAGS.PARAM:')
     supper_dict = FLAGS.BaseConfig.__dict__
@@ -85,9 +88,6 @@ def print_hparams(short=True):
       else:
         print('%s:%s' % (key,supper_dict[key]))
     print('--------------------------\n')
-  print('Short hparams:')
-  [print("%s:%s" % (key, self_dict[key])) for key in sorted(self_dict_keys)]
-  print('--------------------------\n')
 
 
 def get_session_config_proto():
