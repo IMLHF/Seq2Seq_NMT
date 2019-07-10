@@ -260,7 +260,7 @@ def main(exp_dir,
   best_ckpt_name = None
   lr_halving_time = 0
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
-    misc_utils.printinfo("Epoch : %03d" % epoch, log_file)
+    misc_utils.printinfo("%s, Epoch %03d:" % (time.ctime(), epoch), log_file)
     # train
     trainOneEpochOutput = train_one_epoch(log_file,
                                           train_set_textlinefile_src,
@@ -268,8 +268,9 @@ def main(exp_dir,
                                           summary_writer, epoch, train_sgmd)
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
-    misc_utils.printinfo("    Train> loss:%.4f, lr:%.2e, duration:%ds." % (
+    misc_utils.printinfo("    Train> loss:%.4f, optimizer:%s, lr:%.2e, duration:%ds." % (
         trainOneEpochOutput.average_loss,
+        PARAM.optimizer.upper(),
         trainOneEpochOutput.learning_rate,
         trainOneEpochOutput.duration),
         log_file)
