@@ -31,6 +31,9 @@ __all__ = ["scores_msg", "calc_ppl", "evalute"]
 
 
 def scores_msg(scores_dict, upper_case=False):
+  """
+  score_smg: str(" BLEU:XX.XXXX, ROUGE:X.XXXX,")
+  """
   msg=""
   scores_keys = scores_dict.keys()
   for metric in scores_keys:
