@@ -21,12 +21,13 @@ class ValOrTestOutputs(
 
 
 def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
-                summary_writer, epoch, val_sgmd, infer_sgmd):
+                summary_writer, epoch, val_sgmd, infer_sgmd, dataset_name):
   """
   Args:
     exp_dir : $PARAM.root_dir/exp/$PARAM.config_name
     val_sgmd : for validation&test. get loss, ppl.
     infer_sgmd : for validation&test. get bleu, rouge, accracy.
+    dataset_name : dataset name, eg. 'val' or 'test'.
   """
   s_time = time.time()
 
@@ -82,7 +83,7 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
   # endregion val_model
 
   # region infer_mode to calculate bleu, rouge, accuracy
-  trans_file = os.path.join(exp_dir, 'val_set_translate_result_iter%04d.txt' % epoch)
+  trans_file = os.path.join(exp_dir, '%s_set_translate_result_iter%04d.txt' % (dataset_name, epoch))
   trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
   trans_f.write("")  # Write empty string to ensure file is created.
 
@@ -232,7 +233,7 @@ def main(exp_dir,
                                         val_set_textlinefile_src,
                                         val_set_textlinefile_tgt,
                                         summary_writer, 0,
-                                        val_sgmd, infer_sgmd)
+                                        val_sgmd, infer_sgmd, 'val')
   # score_smg: str(" BLEU:XX.XXXX, ROUGE:X.XXXX,")
   scores_msg = eval_utils.scores_msg(valOneEpochOutputs_prev.val_scores, upper_case=True)
   val_msg = "\n\nPRERUN.val> LOSS:%.4F, PPL:%.4F," % (valOneEpochOutputs_prev.average_loss,
@@ -245,7 +246,7 @@ def main(exp_dir,
                                     test_set_textlinefile_src,
                                     test_set_textlinefile_tgt,
                                     summary_writer, 0,
-                                    val_sgmd, infer_sgmd)
+                                    val_sgmd, infer_sgmd, 'test')
   scores_msg = eval_utils.scores_msg(testOneEpochOutputs.val_scores, upper_case=True)
   val_msg = "PRERUN.test> LOSS:%.4F, PPL:%.4F," % (testOneEpochOutputs.average_loss,
                                                    testOneEpochOutputs.average_ppl) + \
@@ -286,7 +287,7 @@ def main(exp_dir,
     tf.logging.set_verbosity(tf.logging.INFO)
     valOneEpochOutputs = val_or_test(exp_dir, log_file,
                                      val_set_textlinefile_src, val_set_textlinefile_tgt,
-                                     summary_writer, epoch, val_sgmd, infer_sgmd)
+                                     summary_writer, epoch, val_sgmd, infer_sgmd, 'val')
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
     misc_utils.printinfo("    Val  > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds" % (
         valOneEpochOutputs.average_loss,
@@ -300,7 +301,7 @@ def main(exp_dir,
     # test (loss, ppl, scores(bleu...))
     testOneEpochOutputs = val_or_test(exp_dir, log_file,
                                       test_set_textlinefile_src, test_set_textlinefile_tgt,
-                                      summary_writer, epoch, val_sgmd, infer_sgmd)
+                                      summary_writer, epoch, val_sgmd, infer_sgmd, 'test')
     misc_utils.printinfo("    Test > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds" % (
         testOneEpochOutputs.average_loss,
         testOneEpochOutputs.average_ppl,
