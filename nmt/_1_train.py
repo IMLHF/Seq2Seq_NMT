@@ -19,10 +19,14 @@ class ValOneEpochOutputs(
                             "average_loss", "duration"))):
   pass
 
-def val_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
-                  summary_writer, epoch, val_sgmd, infer_sgmd):
+
+def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
+                summary_writer, epoch, val_sgmd, infer_sgmd):
   """
-  exp_dir : $PARAM.root_dir/exp/$PARAM.config_name
+  Args:
+    exp_dir : $PARAM.root_dir/exp/$PARAM.config_name
+    val_sgmd : for validation&test. get loss, ppl.
+    infer_sgmd : for validation&test. get bleu, rouge, accracy.
   """
   s_time = time.time()
 
@@ -189,9 +193,14 @@ def main(exp_dir,
          ckpt_dir,
          log_file):  # train
   # sgmd : session, graph, model, dataset
+  # train_mode : for training. get loss.
   train_sgmd = model_builder.build_train_model(log_file, ckpt_dir, PARAM.scope)
   misc_utils.show_variables(train_sgmd.model.save_variables, train_sgmd.graph)
+
+  # val_model : for validation&test. get loss, ppl.
   val_sgmd = model_builder.build_val_model(log_file, ckpt_dir, PARAM.scope)
+
+  # infer_model : for validation&test. get bleu, rouge, accracy.
   infer_sgmd = model_builder.build_infer_model(log_file, ckpt_dir, PARAM.scope)
   # misc_utils.show_all_variables(train_sgmd.graph)
 
@@ -207,22 +216,39 @@ def main(exp_dir,
   train_set_textlinefile_tgt = "%s.%s" % (PARAM.train_prefix, PARAM.tgt)
   val_set_textlinefile_src = "%s.%s" % (PARAM.val_prefix, PARAM.src)
   val_set_textlinefile_tgt = "%s.%s" % (PARAM.val_prefix, PARAM.tgt)
+  test_set_textlinefile_src = "%s.%s" % (PARAM.test_prefix, PARAM.src)
+  test_set_textlinefile_tgt = "%s.%s" % (PARAM.test_prefix, PARAM.tgt)
   train_set_textlinefile_src = misc_utils.add_rootdir(train_set_textlinefile_src)
   train_set_textlinefile_tgt = misc_utils.add_rootdir(train_set_textlinefile_tgt)
   val_set_textlinefile_src = misc_utils.add_rootdir(val_set_textlinefile_src)
   val_set_textlinefile_tgt = misc_utils.add_rootdir(val_set_textlinefile_tgt)
+  test_set_textlinefile_src = misc_utils.add_rootdir(test_set_textlinefile_src)
+  test_set_textlinefile_tgt = misc_utils.add_rootdir(test_set_textlinefile_tgt)
 
-  # region validation before training
-  valOneEpochOutputs_prev = val_one_epoch(exp_dir, log_file,
-                                          val_set_textlinefile_src,
-                                          val_set_textlinefile_tgt,
-                                          summary_writer, 0,
-                                          val_sgmd, infer_sgmd)
+
+  # validation before training
+  valOneEpochOutputs_prev = val_or_test(exp_dir, log_file,
+                                        val_set_textlinefile_src,
+                                        val_set_textlinefile_tgt,
+                                        summary_writer, 0,
+                                        val_sgmd, infer_sgmd)
   # score_smg: str(" BLEU:XX.XXXX, ROUGE:X.XXXX,")
   scores_msg = eval_utils.scores_msg(valOneEpochOutputs_prev.val_scores, upper_case=True)
-  val_msg = "\n\nPRERUN> LOSS:%.4F, PPL:%.4F," % (valOneEpochOutputs_prev.average_loss,
-                                                  valOneEpochOutputs_prev.average_ppl) + \
-      scores_msg + " cost_time %ds\n" % valOneEpochOutputs_prev.duration
+  val_msg = "\n\nPRERUN.val> LOSS:%.4F, PPL:%.4F," % (valOneEpochOutputs_prev.average_loss,
+                                                      valOneEpochOutputs_prev.average_ppl) + \
+      scores_msg + " cost_time %ds" % valOneEpochOutputs_prev.duration
+  misc_utils.printinfo(val_msg, log_file)
+
+  # test before training
+  testOneEpochOutputs = val_or_test(exp_dir, log_file,
+                                    test_set_textlinefile_src,
+                                    test_set_textlinefile_tgt,
+                                    summary_writer, 0,
+                                    val_sgmd, infer_sgmd)
+  scores_msg = eval_utils.scores_msg(testOneEpochOutputs.val_scores, upper_case=True)
+  val_msg = "PRERUN.test> LOSS:%.4F, PPL:%.4F," % (testOneEpochOutputs.average_loss,
+                                                   testOneEpochOutputs.average_ppl) + \
+      scores_msg + " cost_time %ds\n" % testOneEpochOutputs.duration
   misc_utils.printinfo(val_msg, log_file)
 
   # add initial epoch_train_loss
@@ -241,6 +267,11 @@ def main(exp_dir,
                                           summary_writer, epoch, train_sgmd)
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
+    misc_utils.printinfo("    Train> loss:%.4f, lr:%.2e, duration:%ds.\n" % (
+        trainOneEpochOutput.average_loss,
+        trainOneEpochOutput.learning_rate,
+        trainOneEpochOutput.duration),
+        log_file)
 
     # validation (loss, ppl, scores(bleu...))
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
@@ -250,11 +281,31 @@ def main(exp_dir,
     infer_sgmd.model.saver.restore(infer_sgmd.session,
                                    ckpt.model_checkpoint_path)
     tf.logging.set_verbosity(tf.logging.INFO)
-    valOneEpochOutputs = val_one_epoch(exp_dir, log_file,
-                                       val_set_textlinefile_src, val_set_textlinefile_tgt,
-                                       summary_writer, epoch, val_sgmd, infer_sgmd)
+    valOneEpochOutputs = val_or_test(exp_dir, log_file,
+                                     val_set_textlinefile_src, val_set_textlinefile_tgt,
+                                     summary_writer, epoch, val_sgmd, infer_sgmd)
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
+    misc_utils.printinfo("    Val  > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n" % (
+        valOneEpochOutputs.average_loss,
+        valOneEpochOutputs.average_ppl,
+        valOneEpochOutputs.val_scores["bleu"],
+        valOneEpochOutputs.val_scores["rouge"],
+        valOneEpochOutputs.val_scores["accuracy"],
+        valOneEpochOutputs.duration),
+        log_file)
 
+    # test (loss, ppl, scores(bleu...))
+    testOneEpochOutputs = val_or_test(exp_dir, log_file,
+                                      test_set_textlinefile_src, test_set_textlinefile_tgt,
+                                      summary_writer, epoch, val_sgmd, infer_sgmd)
+    misc_utils.printinfo("    Test > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n" % (
+        testOneEpochOutputs.average_loss,
+        testOneEpochOutputs.average_ppl,
+        testOneEpochOutputs.val_scores["bleu"],
+        testOneEpochOutputs.val_scores["rouge"],
+        testOneEpochOutputs.val_scores["accuracy"],
+        testOneEpochOutputs.duration),
+        log_file)
 
     # save or abandon ckpt
     ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_valppl%.4f_lr%.2e_duration%ds' % (
@@ -265,39 +316,13 @@ def main(exp_dir,
                                   os.path.join(ckpt_dir, ckpt_name))
       valOneEpochOutputs_prev = valOneEpochOutputs
       best_ckpt_name = ckpt_name
-      msg = ("    Train> loss:%.4f, lr:%.2e, duration:%ds.\n"
-             "    Val> loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n"
-             "    ckpt(%s) saved.\n") % (
-          trainOneEpochOutput.average_loss,
-          trainOneEpochOutput.learning_rate,
-          trainOneEpochOutput.duration,
-          valOneEpochOutputs.average_loss,
-          valOneEpochOutputs.average_ppl,
-          valOneEpochOutputs.val_scores["bleu"],
-          valOneEpochOutputs.val_scores["rouge"],
-          valOneEpochOutputs.val_scores["accuracy"],
-          valOneEpochOutputs.duration,
-          ckpt_name,
-      )
+      msg = "    ckpt(%s) saved.\n" % ckpt_name
     else:
       tf.logging.set_verbosity(tf.logging.WARN)
       train_sgmd.model.saver.restore(train_sgmd.session,
                                      os.path.join(ckpt_dir, best_ckpt_name))
       tf.logging.set_verbosity(tf.logging.INFO)
-      msg = ("    Train> loss:%.4f, lr:%.2e, duration:%ds.\n"
-             "    Val> loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n"
-             "    ckpt(%s) abandoned.\n") % (
-          trainOneEpochOutput.average_loss,
-          trainOneEpochOutput.learning_rate,
-          trainOneEpochOutput.duration,
-          valOneEpochOutputs.average_loss,
-          valOneEpochOutputs.average_ppl,
-          valOneEpochOutputs.val_scores["bleu"],
-          valOneEpochOutputs.val_scores["rouge"],
-          valOneEpochOutputs.val_scores["accuracy"],
-          valOneEpochOutputs.duration,
-          ckpt_name,
-      )
+      msg = "    ckpt(%s) abandoned.\n" % ckpt_name
     # prt
     misc_utils.printinfo(msg, log_file)
 
@@ -316,6 +341,7 @@ def main(exp_dir,
 
   train_sgmd.session.close()
   val_sgmd.session.close()
+  infer_sgmd.session.close()
   msg = '################### Training Done. ###################'
   tf.logging.info(msg)
   misc_utils.printinfo(msg, log_file, noPrt=True)
