@@ -13,7 +13,7 @@ from .utils import eval_utils
 from .utils import misc_utils
 
 
-class ValOneEpochOutputs(
+class ValOrTestOutputs(
     collections.namedtuple("ValOneEpochOutputs",
                            ("val_scores", "average_ppl",
                             "average_loss", "duration"))):
@@ -130,10 +130,10 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
   misc_utils.add_summary(summary_writer, epoch, "epoch_val_loss", avg_val_loss)
 
   e_time = time.time()
-  return ValOneEpochOutputs(average_loss=avg_val_loss,
-                            duration=e_time-s_time,
-                            val_scores=eval_scores,
-                            average_ppl=avg_ppl)
+  return ValOrTestOutputs(average_loss=avg_val_loss,
+                          duration=e_time-s_time,
+                          val_scores=eval_scores,
+                          average_ppl=avg_ppl)
 
 
 class TrainOneEpochOutputs(
@@ -252,7 +252,8 @@ def main(exp_dir,
   misc_utils.printinfo(val_msg, log_file)
 
   # add initial epoch_train_loss
-  misc_utils.add_summary(summary_writer, 0, "epoch_train_loss", valOneEpochOutputs_prev.average_loss)
+  misc_utils.add_summary(summary_writer, 0, "epoch_train_loss",
+                         valOneEpochOutputs_prev.average_loss+testOneEpochOutputs.average_loss)
 
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
