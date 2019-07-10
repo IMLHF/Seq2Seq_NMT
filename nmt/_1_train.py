@@ -268,7 +268,7 @@ def main(exp_dir,
                                           summary_writer, epoch, train_sgmd)
     train_sgmd.model.saver.save(train_sgmd.session,
                                 os.path.join(ckpt_dir,'tmp'))
-    misc_utils.printinfo("    Train> loss:%.4f, lr:%.2e, duration:%ds.\n" % (
+    misc_utils.printinfo("    Train> loss:%.4f, lr:%.2e, duration:%ds." % (
         trainOneEpochOutput.average_loss,
         trainOneEpochOutput.learning_rate,
         trainOneEpochOutput.duration),
@@ -286,7 +286,7 @@ def main(exp_dir,
                                      val_set_textlinefile_src, val_set_textlinefile_tgt,
                                      summary_writer, epoch, val_sgmd, infer_sgmd)
     val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
-    misc_utils.printinfo("    Val  > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n" % (
+    misc_utils.printinfo("    Val  > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds" % (
         valOneEpochOutputs.average_loss,
         valOneEpochOutputs.average_ppl,
         valOneEpochOutputs.val_scores["bleu"],
@@ -299,7 +299,7 @@ def main(exp_dir,
     testOneEpochOutputs = val_or_test(exp_dir, log_file,
                                       test_set_textlinefile_src, test_set_textlinefile_tgt,
                                       summary_writer, epoch, val_sgmd, infer_sgmd)
-    misc_utils.printinfo("    Test > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds\n" % (
+    misc_utils.printinfo("    Test > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds" % (
         testOneEpochOutputs.average_loss,
         testOneEpochOutputs.average_ppl,
         testOneEpochOutputs.val_scores["bleu"],
