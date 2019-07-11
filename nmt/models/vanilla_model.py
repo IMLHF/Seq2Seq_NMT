@@ -161,7 +161,8 @@ class BaseModel(object):
     # self.saver = tf.train.Saver(tf.trainable_variables(),
     # self.saver = tf.train.Saver(tf.global_variables(),
     self.saver = tf.train.Saver(self.save_variables,
-                                max_to_keep=PARAM.num_keep_ckpts)
+                                max_to_keep=PARAM.num_keep_ckpts,
+                                save_relative_paths=True)
 
     # infer end
     if self.mode == PARAM.MODEL_INFER_KEY:
