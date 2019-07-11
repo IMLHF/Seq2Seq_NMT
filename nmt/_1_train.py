@@ -12,6 +12,10 @@ from .models import model_builder
 from .utils import eval_utils
 from .utils import misc_utils
 
+def __relative_impr(prev_, new_, declining=False):
+  if declining:
+    return (prev_-new_)/(abs(prev_)+abs(new_)+1e-8)
+  return (new_-prev_)/(abs(prev_)+abs(new_)+1e-8)
 
 class ValOrTestOutputs(
     collections.namedtuple("ValOneEpochOutputs",
@@ -259,7 +263,7 @@ def main(exp_dir,
 
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
-  best_ckpt_name = None
+  best_ckpt_name = 'tmp'
   lr_halving_time = 0
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
     misc_utils.printinfo("%s, Epoch %03d:" % (time.ctime(), epoch), log_file)
@@ -288,18 +292,20 @@ def main(exp_dir,
     valOneEpochOutputs = val_or_test(exp_dir, log_file,
                                      val_set_textlinefile_src, val_set_textlinefile_tgt,
                                      summary_writer, epoch, val_sgmd, infer_sgmd, 'val')
-    # get val_ref_impr to val model
+    # get val_loss_rel_iimpr fo lr halving, get val_ref_impr to choise model
+    val_loss_rel_impr = __relative_impr(valOneEpochOutputs_prev.average_loss, valOneEpochOutputs.average_loss, True)
+
     if PARAM.val_criterion == 'loss':
-      val_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
+      val_rel_impr = val_loss_rel_impr
     elif PARAM.val_criterion == 'bleu':
       assert 'bleu' in valOneEpochOutputs_prev.val_scores.keys(), 'bleu must in metrics when val by it'
-      val_rel_impr = 1.0 - (valOneEpochOutputs_prev.val_scores['bleu'] / valOneEpochOutputs.val_scores['bleu'])
+      val_rel_impr = __relative_impr(valOneEpochOutputs_prev.val_scores['bleu'], valOneEpochOutputs.val_scores['bleu'])
     elif PARAM.val_criterion == 'rouge':
       assert 'rouge' in valOneEpochOutputs_prev.val_scores.keys(), 'rouge must in metrics when val by it'
-      val_rel_impr = 1.0 - (valOneEpochOutputs_prev.val_scores['rouge'] / valOneEpochOutputs.val_scores['rouge'])
+      val_rel_impr = __relative_impr(valOneEpochOutputs_prev.val_scores['rouge'], valOneEpochOutputs.val_scores['rouge'])
     elif PARAM.val_criterion == 'accuracy':
       assert 'accuracy' in valOneEpochOutputs_prev.val_scores.keys(), 'accuracy must in metrics when val by it'
-      val_rel_impr = 1.0 - (valOneEpochOutputs_prev.val_scores['accuracy'] / valOneEpochOutputs.val_scores['accuracy'])
+      val_rel_impr = __relative_impr(valOneEpochOutputs_prev.val_scores['accuracy'], valOneEpochOutputs.val_scores['accuracy'])
     else:
       raise ValueError('Unknown val_criterion %s.' %
                        PARAM.val_criterion)
@@ -329,7 +335,7 @@ def main(exp_dir,
     ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_valppl%.4f_lr%.2e_duration%ds' % (
         epoch, trainOneEpochOutput.average_loss, valOneEpochOutputs.average_loss, valOneEpochOutputs.average_ppl,
         trainOneEpochOutput.learning_rate, trainOneEpochOutput.duration+valOneEpochOutputs.duration))
-    if valOneEpochOutputs.average_loss < valOneEpochOutputs_prev.average_loss:
+    if val_rel_impr > 0:
       train_sgmd.model.saver.save(train_sgmd.session,
                                   os.path.join(ckpt_dir, ckpt_name))
       valOneEpochOutputs_prev = valOneEpochOutputs
@@ -345,7 +351,7 @@ def main(exp_dir,
     misc_utils.printinfo(msg, log_file)
 
     # start lr halving
-    if val_rel_impr < PARAM.start_halving_impr:
+    if val_loss_rel_impr < PARAM.start_halving_impr:
       new_lr = trainOneEpochOutput.learning_rate * PARAM.lr_halving_rate
       lr_halving_time += 1
       train_sgmd.model.change_lr(train_sgmd.session, new_lr)
