@@ -288,7 +288,21 @@ def main(exp_dir,
     valOneEpochOutputs = val_or_test(exp_dir, log_file,
                                      val_set_textlinefile_src, val_set_textlinefile_tgt,
                                      summary_writer, epoch, val_sgmd, infer_sgmd, 'val')
-    val_loss_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
+    # get val_ref_impr to val model
+    if PARAM.val_criterion == 'loss':
+      val_rel_impr = 1.0 - (valOneEpochOutputs.average_loss / valOneEpochOutputs_prev.average_loss)
+    elif PARAM.val_criterion == 'bleu':
+      assert 'bleu' in valOneEpochOutputs_prev.val_scores.keys(), 'bleu must in metrics when val by it'
+      val_rel_impr = 1.0 - (valOneEpochOutputs_prev.val_scores['bleu'] / valOneEpochOutputs.val_scores['bleu'])
+    elif PARAM.val_criterion == 'rouge':
+      assert 'rouge' in valOneEpochOutputs_prev.val_scores.keys(), 'rouge must in metrics when val by it'
+      val_rel_impr = 1.0 - (valOneEpochOutputs_prev.val_scores['rouge'] / valOneEpochOutputs.val_scores['rouge'])
+    elif PARAM.val_criterion == 'accuracy':
+      assert 'accuracy' in valOneEpochOutputs_prev.val_scores.keys(), 'accuracy must in metrics when val by it'
+      val_rel_impr = 1.0 - (valOneEpochOutputs_prev.val_scores['accuracy'] / valOneEpochOutputs.val_scores['accuracy'])
+    else:
+      raise ValueError('Unknown val_criterion %s.' %
+                       PARAM.val_criterion)
     misc_utils.printinfo("    Val  > loss:%.4f, ppl:%.4f, bleu:%.4f, rouge:%.4f, accuracy:%.4f, duration %ds" % (
         valOneEpochOutputs.average_loss,
         valOneEpochOutputs.average_ppl,
@@ -331,7 +345,7 @@ def main(exp_dir,
     misc_utils.printinfo(msg, log_file)
 
     # start lr halving
-    if val_loss_rel_impr < PARAM.start_halving_impr:
+    if val_rel_impr < PARAM.start_halving_impr:
       new_lr = trainOneEpochOutput.learning_rate * PARAM.lr_halving_rate
       lr_halving_time += 1
       train_sgmd.model.change_lr(train_sgmd.session, new_lr)
@@ -341,6 +355,10 @@ def main(exp_dir,
       msg = "finished, too small learning rate %e." % trainOneEpochOutput.learning_rate
       tf.logging.info(msg)
       misc_utils.printinfo(msg, log_file, noPrt=True)
+
+      # save best_ckpt
+      train_sgmd.model.saver.save(train_sgmd.session,
+                                  os.path.join(ckpt_dir, best_ckpt_name))
       break
 
   train_sgmd.session.close()

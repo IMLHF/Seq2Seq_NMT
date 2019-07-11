@@ -10,7 +10,7 @@ class BaseConfig(StaticKey):
   root_dir = '/home/room/worklhf/nmt_seq2seq_first/'
   config_name = 'base'
   min_TF_version = "1.12.0"
-  num_keep_ckpts = 30
+  num_keep_ckpts = 1
   '''
   # dir to store log, model and results files:
   $root_dir/exp/$config_name/log: logs(include tensorboard log)
@@ -125,6 +125,7 @@ class BaseConfig(StaticKey):
   # Misc
   num_gpus = 1
   metrics = ["bleu", "rouge", "accuracy"]  # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
+  val_criterion = 'bleu'
   steps_per_external_eval = None
   scope = None # model scope
   avg_ckpts = False # Average the last N checkpoints for external evaluation. N can be controlled by setting --num_keep_ckpts.
