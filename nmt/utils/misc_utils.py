@@ -38,6 +38,7 @@ def ini_task(name):
   print_hparams(not PARAM.verbose_print_hparams)
   hparams_file = os.path.join(exp_dir, 'hparam')
   save_hparams(hparams_file)
+  # TODO ensure dataset textline file have no empty line.
   return exp_dir, log_dir, summary_dir, ckpt_dir, log_file
 
 

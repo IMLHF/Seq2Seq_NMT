@@ -16,7 +16,7 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
     batch_size = self.batch_size * beam_width
     return memory, source_sequence_length, encoder_state, batch_size
 
-  def _create_attention_mechanism(num_units, memory, source_sequence_length):
+  def _create_attention_mechanism(self, num_units, memory, source_sequence_length):
     """
     Args:
       num_units: The depth of the attention (query) mechanism.
@@ -48,23 +48,25 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
     return attention_mechanism
 
 
-  def _build_decoder_cell(self, encoder_outputs, encoder_state, source_seq_length):
+  def _build_decoder_cell(self, encoder_outputs, encoder_state):
     # memory [batch, time, ...]
     memory = encoder_outputs
     if PARAM.time_major:
       memory = tf.transpose(encoder_outputs, [1,0,2])
 
+    source_seq_lengths = self.source_seq_lengths
+
     # beam_search
     batch_size = self.batch_size
     if self.mode == PARAM.MODEL_INFER_KEY and PARAM.infer_mode == 'beam_search':
-      memory, source_seq_length, encoder_state, batch_size = (
+      memory, source_seq_lengths, encoder_state, batch_size = (
           self._prepare_beam_search_decoder_inputs(PARAM.beam_width, memory,
-                                                   source_seq_length, encoder_state))
+                                                   source_seq_lengths, encoder_state))
 
     # attention_mechanism
     attention_mechanism = self._create_attention_mechanism(PARAM.decoder_num_units, # TODO ? or encoder_num_units
                                                            memory,
-                                                           source_seq_length)
+                                                           source_seq_lengths)
 
     # rnn_cell
     rnn_cell = model_helper.multiRNNCell(

@@ -43,7 +43,7 @@ class BaseConfig(StaticKey):
   gnmt_current: similar to gnmt, but use current bottom layer to compute attention.
   '''
 
-  attention = 'luong'
+  attention = 'scaled_luong'
   '''
   for model_type == 'standard_attention'
   luong | scaled_luong | bahdanau | normed_bahdanau
@@ -186,8 +186,16 @@ class C003_2_adam_beam_search10(BaseConfig):
   infer_mode = 'beam_search'
   beam_width = 10
 
+class C004_attention_test(BaseConfig):
+  config_name = 'C004_attention_test'
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'greedy'
 
-PARAM = C003_2_adam_beam_search10
+
+PARAM = C004_attention_test
 
 if __name__ == '__main__':
   pass

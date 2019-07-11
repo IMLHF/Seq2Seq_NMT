@@ -4,8 +4,8 @@ import tensorflow as tf
 
 from ..FLAGS import PARAM
 # from models import gnmt_model
-# from models import attention_model
 from . import vanilla_model
+from . import rnn_attention_model
 from ..utils import dataset_utils
 from ..utils import misc_utils
 from ..utils import vocab_utils
@@ -14,16 +14,16 @@ from ..utils import vocab_utils
 #                         'ckpt')
 
 def _get_model_creator():
-  model_creator = vanilla_model.RNNSeq2SeqModel
+  # model_creator = vanilla_model.RNNSeq2SeqModel
   # if PARAM.model_type in ['gnmt','gnmt_current']:
-  #   model_creator = gnmt_model.GNMTModel
-  # elif PARAM.model_type == 'standard_attention':
-  #   model_creator = attention_model.AttentionModel
-  # elif PARAM.model_type == 'vanilla':
-  #   model_creator = vanilla_model.RNNSeq2SeqModel
-  # else:
-  #   raise ValueError('Unknown model type %s.' %
-  # #                    PARAM.model_type)
+  #   # model_creator = gnmt_model.GNMTModel
+  if PARAM.model_type == 'vanilla':
+    model_creator = vanilla_model.RNNSeq2SeqModel
+  elif PARAM.model_type == 'standard_attention':
+    model_creator = rnn_attention_model.RNNAttentionModel
+  else:
+    raise ValueError('Unknown model type %s.' %
+                     PARAM.model_type)
   return model_creator
 
 
@@ -99,8 +99,9 @@ def build_val_model(log_file, ckpt_dir, scope='validation'):
         tgt_file_ph,
         src_vocab_table,
         tgt_vocab_table,
-        False,
-        False,
+        shuffle=False,
+        bucket=False,
+        filter_zero_seq=False,
     )
 
     val_model = model_creator(
@@ -157,8 +158,9 @@ def build_infer_model(log_file, ckpt_dir, scope='infer'):
         tgt_file_ph,
         src_vocab_table,
         tgt_vocab_table,
-        False,
-        False,
+        shuffle=False,
+        bucket=False,
+        filter_zero_seq=False,
     )
 
     infer_model = model_creator(
