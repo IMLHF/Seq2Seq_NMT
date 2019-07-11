@@ -365,7 +365,9 @@ def main(exp_dir,
       # save best_ckpt
       train_sgmd.model.saver.save(train_sgmd.session,
                                   os.path.join(ckpt_dir, best_ckpt_name))
-      os.remove(os.path.join(ckpt_dir, 'tmp*'))
+      os.remove(os.path.join(ckpt_dir, 'tmp.data-00000-of-00001'))
+      os.remove(os.path.join(ckpt_dir, 'tmp.index'))
+      os.remove(os.path.join(ckpt_dir, 'tmp.meta'))
       break
 
   train_sgmd.session.close()
