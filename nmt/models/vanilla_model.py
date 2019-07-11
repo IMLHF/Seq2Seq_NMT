@@ -16,7 +16,7 @@ misc_utils.check_tensorflow_version()
 __all__ = [
     # 'TrainOutputs',
     'BaseModel',
-    'Model']
+    'RNNSeq2SeqModel']
 
 # class TrainOutputs(collections.namedtuple(
 #     "TrainOutputs", ("train_summary", "train_loss", "predict_count",
@@ -71,7 +71,7 @@ class BaseModel(object):
     self.src_vocab_size = src_vocab_size
     self.tgt_vocab_size = tgt_vocab_size
     self.batch_size = tf.size(self.source_seq_lengths)
-    self.dtype=tf.float32
+    self.dtype=PARAM.dtype
     self.single_cell_fn = None
     self.num_encoder_layers = PARAM.encoder_num_layers
     self.num_decoder_layers = PARAM.decoder_num_layers
@@ -309,7 +309,7 @@ class BaseModel(object):
 
 
 
-class Model(BaseModel):
+class RNNSeq2SeqModel(BaseModel):
   def _build_encoder(self,seq,seq_lengths):
     """
     Returns:
@@ -391,7 +391,8 @@ class Model(BaseModel):
     return encoder_outputs, encoder_state
 
   def _build_decoder_cell(
-          self, encoder_final_state):
+          self, encoder_outputs, encoder_final_state):
+    del encoder_outputs # no use for vanilla model
     multi_cell = model_helper.multiRNNCell(
         unit_type=PARAM.decoder_unit_type,
         num_units=PARAM.decoder_num_units,
@@ -438,7 +439,7 @@ class Model(BaseModel):
 
     with tf.variable_scope("decoder") as decoder_scope:
       # region decoder
-      cell, decoder_init_state = self._build_decoder_cell(encoder_final_state)
+      cell, decoder_init_state = self._build_decoder_cell(encoder_outputs, encoder_final_state)
       ## inference
       if self.mode == PARAM.MODEL_INFER_KEY:
         decoder = None

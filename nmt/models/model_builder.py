@@ -14,13 +14,13 @@ from ..utils import vocab_utils
 #                         'ckpt')
 
 def _get_model_creator():
-  model_creator = vanilla_model.Model
+  model_creator = vanilla_model.RNNSeq2SeqModel
   # if PARAM.model_type in ['gnmt','gnmt_current']:
   #   model_creator = gnmt_model.GNMTModel
   # elif PARAM.model_type == 'standard_attention':
   #   model_creator = attention_model.AttentionModel
   # elif PARAM.model_type == 'vanilla':
-  #   model_creator = vanilla_model.Model
+  #   model_creator = vanilla_model.RNNSeq2SeqModel
   # else:
   #   raise ValueError('Unknown model type %s.' %
   # #                    PARAM.model_type)
