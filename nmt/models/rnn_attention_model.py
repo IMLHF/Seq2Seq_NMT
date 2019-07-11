@@ -64,7 +64,8 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
                                                    source_seq_lengths, encoder_state))
 
     # attention_mechanism
-    attention_mechanism = self._create_attention_mechanism(PARAM.decoder_num_units, # TODO ? or encoder_num_units
+    attention_mechanism = self._create_attention_mechanism(PARAM.decoder_num_units,
+                                                           # num_unit: set query dim to project to key dim
                                                            memory,
                                                            source_seq_lengths)
 

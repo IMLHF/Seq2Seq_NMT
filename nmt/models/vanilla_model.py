@@ -88,8 +88,8 @@ class BaseModel(object):
     self.embedding_encoder = None
     self.embedding_decoder = None
     with tf.variable_scope('embeddings',dtype=self.dtype):
-      src_embed_size = PARAM.encoder_num_units
-      tgt_embed_size = PARAM.decoder_num_units
+      src_embed_size = PARAM.src_embed_size
+      tgt_embed_size = PARAM.tgt_embed_size
       src_embed_file = "%s.%s" % (PARAM.embed_prefix, PARAM.src) if PARAM.embed_prefix else None
       tgt_embed_file = "%s.%s" % (PARAM.embed_prefix, PARAM.tgt) if PARAM.embed_prefix else None
       if PARAM.share_vocab:
@@ -146,10 +146,35 @@ class BaseModel(object):
         encoder_outputs = None
         encoder_final_state = None
       else:
+        # encoder_outputs: [batch, time, 2*units] if bidirection else [[batch, time, units]]
+        # encoder_final_state: [layers, 2(c,h), batch, units]
         encoder_outputs, encoder_final_state = self._build_encoder(
             self.source_id_seq,
             self.source_seq_lengths
         )  # build_encoder
+        print(encoder_outputs.get_shape().as_list(),"---------------------")
+
+      # projection encoder_final_state
+      if PARAM.projection_encoder_final_state:
+        with tf.variable_scope("build_network"):
+          with tf.variable_scope("encoder_decoder/state_projection"):
+            # Projection
+            self.state_projection = tf.layers.Dense(
+                PARAM.decoder_num_units, use_bias=False, name="state_projection")
+        # encoder_final_state = self.state_projection(encoder_final_state)
+        if PARAM.decoder_unit_type=='lstm' and PARAM.encoder_unit_type=='lstm':
+          new_c_h_tupe_list = []
+          for c_h_tuple in encoder_final_state:
+            new_c_h_tupe_list.append(tf.nn.rnn_cell.LSTMStateTuple(c=self.state_projection(c_h_tuple[0]),
+                                                                   h=self.state_projection(c_h_tuple[1])))
+          encoder_final_state = tuple(new_c_h_tupe_list)
+        else:
+          raise NotImplementedError('not implement, decoder:%s, encoder:%s.'% (
+              PARAM.decoder_unit_type, PARAM.encoder_unit_type))
+
+
+      else:
+        assert PARAM.encoder_num_units == PARAM.decoder_num_units, 'encoder_num_units != decoder_num_units and not projection'
 
       # decoder
       self.logits, self.sample_id, _, rnn_outputs_for_sampled_sotmax = (
@@ -322,7 +347,7 @@ class RNNSeq2SeqModel(BaseModel):
     with tf.variable_scope("encoder"):
       encoder_inputs = tf.nn.embedding_lookup(self.embedding_encoder,
                                               seq)
-      if PARAM.encoder_type == "uni":
+      if PARAM.encoder_type == 'uni':
         misc_utils.printinfo("  encoder_num_layers = %d, encoder_layer_start_residual=%d" %
                              (PARAM.encoder_num_layers,
                               PARAM.encoder_layer_start_residual), self.log_file)
@@ -346,6 +371,7 @@ class RNNSeq2SeqModel(BaseModel):
         )
         # self._debug=encoder_state[0][0].get_shape().as_list()
       elif PARAM.encoder_type == "bi":
+        assert PARAM.encoder_num_layers*2 == PARAM.decoder_num_layers, "2*encoder_layers == decoder_layers if bidirectional rnn used."
         fw_multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
             num_units=PARAM.encoder_num_units,
@@ -366,14 +392,17 @@ class RNNSeq2SeqModel(BaseModel):
             mode=self.mode,
             num_gpus=PARAM.num_gpus
         )
+        # fw_multi_cell = fw_multi_cell._cells
+        # bw_multi_cell = bw_multi_cell._cells
         bi_outputs, bi_state = tf.nn.bidirectional_dynamic_rnn(
-          fw_multi_cell,
-          bw_multi_cell,
-          encoder_inputs,
-          dtype=self.dtype,
-          sequence_length=seq_lengths,
-          time_major=PARAM.time_major,
-          swap_memory=True
+            # bi_outputs, bi_state = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(
+            fw_multi_cell,
+            bw_multi_cell,
+            encoder_inputs,
+            dtype=self.dtype,
+            sequence_length=seq_lengths,
+            time_major=PARAM.time_major,
+            # swap_memory=True
         )
         encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
         if PARAM.encoder_num_layers == 1:
@@ -388,7 +417,7 @@ class RNNSeq2SeqModel(BaseModel):
       else:
         raise ValueError("Unknown encoder_type %s" % PARAM.encoder_type)
 
-    self.encoder_state_list = [encoder_outputs]
+    # encoder_state:[2(fw,bw), layers, 2(c,h), batch, units] if bidirection else [layers, 2(c,h), batch, units]
     return encoder_outputs, encoder_state
 
   def _build_decoder_cell(
