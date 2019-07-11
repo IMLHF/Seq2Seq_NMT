@@ -1,4 +1,4 @@
-
+import tensorflow as tf
 class StaticKey(object):
   MODEL_TRAIN_KEY = 'train'
   MODEL_INFER_KEY = 'infer'
@@ -21,7 +21,7 @@ class BaseConfig(StaticKey):
   '''
 
   # dataset
-  output_buffer_size = None
+  output_buffer_size = None # must larger than batch_size
   reshuffle_each_iteration = True
   num_parallel_calls = 8
 
@@ -32,6 +32,7 @@ class BaseConfig(StaticKey):
   decoder_num_layers = 4
   encoder_layer_start_residual = 2
   decoder_layer_start_residual = 2
+  dtype=tf.float32
 
   model_type = 'vanilla'
   '''
@@ -44,8 +45,14 @@ class BaseConfig(StaticKey):
 
   attention = 'luong'
   '''
-  luong | scaled_luong | bahdanau | normed_bahdanau or set to '' for no attention
+  for model_type == 'standard_attention'
+  luong | scaled_luong | bahdanau | normed_bahdanau
   '''
+
+  attention_layer_size = 512 # TODO test
+  attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
+  output_attention = True # Whether use attention as the decoder cell output at each timestep. TODO test
+  pass_hidden_state_when_attention = True # TODO test
 
   encoder_type = 'bi'
   '''
@@ -54,7 +61,6 @@ class BaseConfig(StaticKey):
   For gnmt, we build 1 bi-directional layer, and (num_encoder_layers - 1) uni-directional layers.
   '''
 
-  residual = False # ?
   time_major= False # Whether to use time-major mode for dynamic RNN.
   # num_embeddings_partitions = 0 # ?
 
@@ -109,11 +115,11 @@ class BaseConfig(StaticKey):
   encoder_drop_rate = 0.5
   decoder_drop_rate = 0.5
   max_gradient_norm = 5.0 # gradient clip
-  batch_size = 256
-  batches_to_logging = 100
+  batch_size = 128
+  batches_to_logging = 300
   max_train = 0 # Limit on the size of training data (0: no limit).
   num_buckets = 5 # if > 1; Bucket sentence pairs by the length of their source sentence and target sentence.
-  num_sampled_softmax = 0 # Use sampled_softmax_loss if > 0, else full softmax loss.
+  num_sampled_softmax = 0 # Use sampled_softmax_loss if > 0, else full softmax loss. default=
   subword_option = None # method format sample_words to text, not use
 
   # Misc
@@ -125,7 +131,7 @@ class BaseConfig(StaticKey):
 
   # inference
   infer_mode = 'greedy' # "greedy", "sample", "beam_search"
-  beam_width = 3 # beam width for beam search decoder. If 0, use standard decoder with greedy helper.
+  beam_width = None # beam width for beam search decoder. If 0, use standard decoder with greedy helper.
   length_penalty_weight = 0.0 # Length penalty for beam search.
   coverage_penalty_weight = 0.0 # Coverage penalty for beam search.
   sampling_temperature = 0.0
@@ -150,30 +156,38 @@ class BaseConfig(StaticKey):
   # Extra
   #################
   language_model = False # True to train a language model, ignoring encoder
-  warmup_steps = 0 # steps lr warmup
-  warmup_scheme = 't2t'
-  lr_decay_scheme = None
-  '''
-  "luong234" | "luong5" | "luong10" | None
-  How we decay learning rate. Options include:
-      luong234: after 2/3 num train steps, we start halving the learning rate
-        for 4 times before finishing.
-      luong5: after 1/2 num train steps, we start halving the learning rate
-        for 5 times before finishing.
-      luong10: after 1/2 num train steps, we start halving the learning rate
-        for 10 times before finishing.
-      None: no decay.
-  '''
 
   use_char_encode = False # ?
 
+class C001_adam_greedy(BaseConfig):
+  config_name = "C001_adam_greedy"
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'greedy'
 
-class TEST_C(BaseConfig):
-  pass
+class C002_adam_sample(BaseConfig):
+  config_name = "C002_adam_sample"
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'sample'
+  sampling_temperature = 1.0
+
+class C003_1_adam_beam_search5(BaseConfig):
+  config_name = "C003_1_adam_beam_search5"
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'beam_search'
+  beam_width = 5
+
+class C003_2_adam_beam_search10(BaseConfig):
+  config_name = "C003_2_adam_beam_search10"
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'beam_search'
+  beam_width = 10
 
 
-PARAM = TEST_C
-
+PARAM = C003_2_adam_beam_search10
 
 if __name__ == '__main__':
   pass
