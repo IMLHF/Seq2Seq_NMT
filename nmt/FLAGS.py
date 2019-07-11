@@ -10,7 +10,7 @@ class BaseConfig(StaticKey):
   root_dir = '/home/room/worklhf/nmt_seq2seq_first/'
   config_name = 'base'
   min_TF_version = "1.12.0"
-  num_keep_ckpts = 1
+  num_keep_ckpts = 2
   '''
   # dir to store log, model and results files:
   $root_dir/exp/$config_name/log: logs(include tensorboard log)
@@ -26,13 +26,17 @@ class BaseConfig(StaticKey):
   num_parallel_calls = 8
 
   # region network
+  src_embed_size = 512
+  tgt_embed_size = 512
   encoder_num_units = 512
   decoder_num_units = 512
+  projection_encoder_final_state = False
   encoder_num_layers = 2
   decoder_num_layers = 4
   encoder_layer_start_residual = 2
   decoder_layer_start_residual = 2
   dtype=tf.float32
+  stack_bi_rnn = False # stack_bidirectional_dynamic_rnn if True else bidirectional_dynamic_rnn # TODO test performance
 
   model_type = 'vanilla'
   '''
@@ -49,10 +53,10 @@ class BaseConfig(StaticKey):
   luong | scaled_luong | bahdanau | normed_bahdanau
   '''
 
-  attention_layer_size = 512 # TODO test
+  attention_layer_size = None # add projection after attention_vec if not None
   attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
-  output_attention = True # Whether use attention as the decoder cell output at each timestep. TODO test
-  pass_hidden_state_when_attention = True # TODO test
+  output_attention = True # Whether use attention as the decoder cell output at each timestep. TODO test preformance
+  pass_state_using_attention = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
 
   encoder_type = 'bi'
   '''
@@ -65,13 +69,12 @@ class BaseConfig(StaticKey):
   # num_embeddings_partitions = 0 # ?
 
   standard_output_attention = True # Only used in standard attention_architecture. Whether use attention as the cell output at each timestep.
-  pass_hidden_state = True # Whether to pass encoder's hidden state to decoder when using an attention based model.
   # endregion
 
   # regiion optimizer & lr halving & stop criterion
   start_halving_impr = 0.001
-  lr_halving_rate = 0.7
-  max_lr_halving_time = 8
+  lr_halving_rate = 0.5
+  max_lr_halving_time = 4
 
   optimizer = 'sgd' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
@@ -160,43 +163,71 @@ class BaseConfig(StaticKey):
 
   use_char_encode = False # ?
 
-class C001_adam_greedy(BaseConfig):
+class C001_adam_greedy(BaseConfig): # DONE 15123
   config_name = "C001_adam_greedy"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'greedy'
 
-class C002_adam_sample(BaseConfig):
+class C001_adam_greedy_projection(BaseConfig): # RUNNING 15123
+  config_name = "C001_adam_greedy_projection"
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'greedy'
+  projection_encoder_final_state = True
+
+class C001_adam_greedy_stackbirnn(BaseConfig): # RUNNNING 15123
+  config_name = "C001_adam_greedy_stackbirnn"
+  optimizer = 'adam'
+  learning_rate = 0.001
+  infer_mode = 'greedy'
+  stack_bi_rnn = True
+
+class C002_adam_sample(BaseConfig): # DONE 15123
   config_name = "C002_adam_sample"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'sample'
   sampling_temperature = 1.0
 
-class C003_1_adam_beam_search5(BaseConfig):
+class C003_1_adam_beam_search5(BaseConfig): # DONE 15123
   config_name = "C003_1_adam_beam_search5"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'beam_search'
   beam_width = 5
 
-class C003_2_adam_beam_search10(BaseConfig):
+class C003_2_adam_beam_search10(BaseConfig): # DONE 15123
   config_name = "C003_2_adam_beam_search10"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'beam_search'
   beam_width = 10
 
-class C004_attention_test(BaseConfig):
+class C004_attention_scaled_luong(BaseConfig): # pendding
   config_name = 'C004_attention_test'
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
-  infer_mode = 'greedy'
+
+class C004_attention_scaled_luong_RNNoutput(BaseConfig): # pendding
+  config_name = 'C004_attention_scaled_luong_RNNoutput'
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  output_attention = False
+
+class C004_attention_scaled_luong_nostate(BaseConfig): # pendding
+  config_name = 'C004_attention_test'
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  pass_state_using_attention = False
 
 
-PARAM = C004_attention_test
-
+PARAM = C001_adam_greedy_stackbirnn
 if __name__ == '__main__':
   pass

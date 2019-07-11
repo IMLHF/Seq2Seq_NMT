@@ -133,11 +133,8 @@ class BaseModel(object):
                                                                      self.dtype)
 
     # train graph
-    with tf.variable_scope("build_network"):
-      with tf.variable_scope("decoder/output_projection"):
-        # Projection
-        self.output_layer = tf.layers.Dense(
-            self.tgt_vocab_size, use_bias=False, name="output_projection")
+    self.output_layer = tf.layers.Dense( # output projection
+        self.tgt_vocab_size, use_bias=False, name="output_projection")
 
     with tf.variable_scope('dynamic_seq2seq',dtype=self.dtype):
       # encoder
@@ -152,15 +149,13 @@ class BaseModel(object):
             self.source_id_seq,
             self.source_seq_lengths
         )  # build_encoder
-        print(encoder_outputs.get_shape().as_list(),"---------------------")
+        # print(encoder_outputs.get_shape().as_list(),"---------------------")
 
       # projection encoder_final_state
       if PARAM.projection_encoder_final_state:
-        with tf.variable_scope("build_network"):
-          with tf.variable_scope("encoder_decoder/state_projection"):
-            # Projection
-            self.state_projection = tf.layers.Dense(
-                PARAM.decoder_num_units, use_bias=False, name="state_projection")
+        # Projection
+        self.state_projection = tf.layers.Dense(
+            PARAM.decoder_num_units, use_bias=False, name="encoder2decoder/state_projection")
         # encoder_final_state = self.state_projection(encoder_final_state)
         if PARAM.decoder_unit_type=='lstm' and PARAM.encoder_unit_type=='lstm':
           new_c_h_tupe_list = []
@@ -380,7 +375,8 @@ class RNNSeq2SeqModel(BaseModel):
             forget_bias=PARAM.encoder_forget_bias,
             droprate=PARAM.encoder_drop_rate,
             mode=self.mode,
-            num_gpus=PARAM.num_gpus
+            num_gpus=PARAM.num_gpus,
+            stack_bi_rnn=PARAM.stack_bi_rnn,
         )
         bw_multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
@@ -390,21 +386,33 @@ class RNNSeq2SeqModel(BaseModel):
             forget_bias=PARAM.encoder_forget_bias,
             droprate=PARAM.encoder_drop_rate,
             mode=self.mode,
-            num_gpus=PARAM.num_gpus
+            num_gpus=PARAM.num_gpus,
+            stack_bi_rnn=PARAM.stack_bi_rnn,
         )
-        # fw_multi_cell = fw_multi_cell._cells
-        # bw_multi_cell = bw_multi_cell._cells
-        bi_outputs, bi_state = tf.nn.bidirectional_dynamic_rnn(
-            # bi_outputs, bi_state = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(
-            fw_multi_cell,
-            bw_multi_cell,
-            encoder_inputs,
-            dtype=self.dtype,
-            sequence_length=seq_lengths,
-            time_major=PARAM.time_major,
-            # swap_memory=True
-        )
-        encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
+        if PARAM.stack_bi_rnn:
+          fw_multi_cell = fw_multi_cell._cells
+          bw_multi_cell = bw_multi_cell._cells
+          bi_outputs, fw_state, bw_state = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(
+              fw_multi_cell,
+              bw_multi_cell,
+              encoder_inputs,
+              dtype=self.dtype,
+              sequence_length=seq_lengths,
+              time_major=PARAM.time_major,
+          )
+          encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), (fw_state, bw_state)
+        else:
+          bi_outputs, bi_state = tf.nn.bidirectional_dynamic_rnn(
+              fw_multi_cell,
+              bw_multi_cell,
+              encoder_inputs,
+              dtype=self.dtype,
+              sequence_length=seq_lengths,
+              time_major=PARAM.time_major,
+              # swap_memory=True
+          )
+          encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
+
         if PARAM.encoder_num_layers == 1:
           encoder_state = bi_encoder_state
         else:

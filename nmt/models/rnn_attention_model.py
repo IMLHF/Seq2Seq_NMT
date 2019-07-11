@@ -94,7 +94,7 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
     )
 
     # whether pass encoder_state to decoder
-    if PARAM.pass_hidden_state_when_attention:
+    if PARAM.pass_state_using_attention:
       decoder_initial_state = attentioned_cell.zero_state(batch_size, self.dtype).clone(
           cell_state=encoder_state)
     else:
