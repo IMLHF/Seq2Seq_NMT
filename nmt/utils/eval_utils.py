@@ -16,6 +16,7 @@
 """Utility for evaluating various tasks, e.g., translation & summarization."""
 import codecs
 import math
+# from nltk.translate.bleu_score import corpus_bleu
 import os
 import re
 import subprocess
@@ -99,26 +100,28 @@ def _bleu(ref_file, trans_file, subword_option=None):
   reference_text = []
   for reference_filename in ref_files:
     with codecs.getreader("utf-8")(
-        tf.gfile.GFile(reference_filename, "rb")) as fh:
+            tf.gfile.GFile(reference_filename, "rb")) as fh:
       reference_text.append(fh.readlines())
 
-  per_segment_references = []
+  per_segment_references = [] # [sentences, files, words]
   for references in zip(*reference_text):
     reference_list = []
-    for reference in references:
+    for reference in references: # reference: ref_sentences of target
       reference = _clean(reference, subword_option)
       reference_list.append(reference.split(" "))
     per_segment_references.append(reference_list)
 
-  translations = []
+  translations = [] # [sentences, words]
   with codecs.getreader("utf-8")(tf.gfile.GFile(trans_file, "rb")) as fh:
     for line in fh:
       line = _clean(line, subword_option=None)
       translations.append(line.split(" "))
 
   # bleu_score, precisions, bp, ratio, translation_length, reference_length
-  bleu_score, _, _, _, _, _ = bleu.compute_bleu(
+  bleu_score, _, _, _, _, _ = bleu.compute_bleu( # faster than nltk
       per_segment_references, translations, max_order, smooth)
+  # nltk_bleu_score = corpus_bleu(per_segment_references, translations)
+  # print(bleu_score, nltk_bleu_score)
   return 100 * bleu_score
 
 
@@ -132,7 +135,7 @@ def _rouge(ref_file, summarization_file, subword_option=None):
 
   hypotheses = []
   with codecs.getreader("utf-8")(
-      tf.gfile.GFile(summarization_file, "rb")) as fh:
+          tf.gfile.GFile(summarization_file, "rb")) as fh:
     for line in fh:
       hypotheses.append(_clean(line, subword_option=None))
 
