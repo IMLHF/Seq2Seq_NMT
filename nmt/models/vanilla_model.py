@@ -409,7 +409,7 @@ class RNNSeq2SeqModel(BaseModel):
               dtype=self.dtype,
               sequence_length=seq_lengths,
               time_major=PARAM.time_major,
-              # swap_memory=True
+              swap_memory=True
           )
           encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
 

@@ -53,7 +53,7 @@ class BaseConfig(StaticKey):
   luong | scaled_luong | bahdanau | normed_bahdanau
   '''
 
-  attention_layer_size = None # add projection after attention_vec if not None
+  attention_layer_size = 512 # add projection after attention_vec if not None, # # why (not None is needed). TODO
   attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
   output_attention = True # Whether use attention as the decoder cell output at each timestep. TODO test preformance
   pass_state_using_attention = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
@@ -67,8 +67,6 @@ class BaseConfig(StaticKey):
 
   time_major= False # Whether to use time-major mode for dynamic RNN.
   # num_embeddings_partitions = 0 # ?
-
-  standard_output_attention = True # Only used in standard attention_architecture. Whether use attention as the cell output at each timestep.
   # endregion
 
   # regiion optimizer & lr halving & stop criterion
@@ -128,7 +126,7 @@ class BaseConfig(StaticKey):
   # Misc
   num_gpus = 1
   metrics = ["bleu", "rouge", "accuracy"]  # Comma-separated list of evaluations "metrics (bleu,rouge,accuracy)"
-  val_criterion = 'bleu'
+  val_criterion = 'loss' # "loss", "bleu", "rouge", "accuracy"
   steps_per_external_eval = None
   scope = None # model scope
   avg_ckpts = False # Average the last N checkpoints for external evaluation. N can be controlled by setting --num_keep_ckpts.
@@ -169,14 +167,14 @@ class C001_adam_greedy(BaseConfig): # DONE 15123
   learning_rate = 0.001
   infer_mode = 'greedy'
 
-class C001_adam_greedy_projection(BaseConfig): # RUNNING 15123
+class C001_adam_greedy_projection(BaseConfig): # DONE 15123
   config_name = "C001_adam_greedy_projection"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'greedy'
   projection_encoder_final_state = True
 
-class C001_adam_greedy_stackbirnn(BaseConfig): # RUNNNING 15123
+class C001_adam_greedy_stackbirnn(BaseConfig): # DONE 15123
   config_name = "C001_adam_greedy_stackbirnn"
   optimizer = 'adam'
   learning_rate = 0.001
@@ -204,14 +202,14 @@ class C003_2_adam_beam_search10(BaseConfig): # DONE 15123
   infer_mode = 'beam_search'
   beam_width = 10
 
-class C004_attention_scaled_luong(BaseConfig): # pendding
-  config_name = 'C004_attention_test'
+class C004_attention_scaled_luong(BaseConfig): # RUNNING 15123
+  config_name = 'C004_attention_scaled_luong'
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
 
-class C004_attention_scaled_luong_RNNoutput(BaseConfig): # pendding
+class C004_attention_scaled_luong_RNNoutput(BaseConfig): # RUNNING 15123
   config_name = 'C004_attention_scaled_luong_RNNoutput'
   model_type = 'standard_attention'
   attention = 'scaled_luong'
@@ -220,7 +218,7 @@ class C004_attention_scaled_luong_RNNoutput(BaseConfig): # pendding
   output_attention = False
 
 class C004_attention_scaled_luong_nostate(BaseConfig): # pendding
-  config_name = 'C004_attention_test'
+  config_name = 'C004_attention_scaled_luong_nostate'
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
@@ -228,6 +226,6 @@ class C004_attention_scaled_luong_nostate(BaseConfig): # pendding
   pass_state_using_attention = False
 
 
-PARAM = C001_adam_greedy_stackbirnn
+PARAM = C004_attention_scaled_luong_RNNoutput
 if __name__ == '__main__':
   pass

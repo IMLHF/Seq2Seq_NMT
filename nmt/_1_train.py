@@ -294,7 +294,6 @@ def main(exp_dir,
                                      summary_writer, epoch, val_sgmd, infer_sgmd, 'val')
     # get val_loss_rel_iimpr fo lr halving, get val_ref_impr to choise model
     val_loss_rel_impr = __relative_impr(valOneEpochOutputs_prev.average_loss, valOneEpochOutputs.average_loss, True)
-
     if PARAM.val_criterion == 'loss':
       val_rel_impr = val_loss_rel_impr
     elif PARAM.val_criterion == 'bleu':
