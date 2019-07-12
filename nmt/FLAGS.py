@@ -23,7 +23,7 @@ class BaseConfig(StaticKey):
   '''
 
   # dataset
-  output_buffer_size = None # must larger than batch_size
+  output_buffer_size = 512*1000 # must larger than batch_size
   reshuffle_each_iteration = True
   num_parallel_calls = 8
 
@@ -229,7 +229,12 @@ class C004_attention_scaled_luong_deep(BaseConfig): # DONE 15123
   encoder_num_layers = 3
   decoder_num_layers = 6
 
+class nmt_test(BaseConfig):
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
 
-PARAM = C004_attention_scaled_luong_deep
+PARAM = nmt_test
 if __name__ == '__main__':
   pass
