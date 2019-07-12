@@ -211,5 +211,3 @@ def _moses_bleu(multi_bleu_script, tgt_test, trans_file, subword_option=None):
   bleu_score = float(m.group(1))
 
   return bleu_score
-
-
