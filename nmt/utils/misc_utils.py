@@ -10,12 +10,15 @@ from ..FLAGS import PARAM
 def add_rootdir(_dir):
   return os.path.join(PARAM.root_dir,_dir)
 
+def config_name():
+  return PARAM.__class__name__(PARAM())
+
 def ini_task(name):
-  exp_dir = os.path.join(PARAM.root_dir,'exp',PARAM.config_name)
+  exp_dir = os.path.join(PARAM.root_dir,'exp',config_name())
   log_dir = os.path.join(exp_dir, 'log')
   ckpt_dir = os.path.join(exp_dir, 'ckpt')
   summary_dir = os.path.join(exp_dir, 'summary')
-  log_file = os.path.join(log_dir, '%s_%s.log' % (name,PARAM.config_name))
+  log_file = os.path.join(log_dir, '%s_%s.log' % (name,config_name()))
   if not os.path.exists(exp_dir):
     printinfo('Output directory "%s" not exist, creating...' % exp_dir)
     os.makedirs(exp_dir)

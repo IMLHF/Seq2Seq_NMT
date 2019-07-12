@@ -27,4 +27,4 @@ def main(exp_dir,
 
 if __name__ == '__main__':
   tf.logging.set_verbosity(tf.logging.INFO)
-  main(*misc_utils.ini_task('test')) # generate log in '"test_"+PARAM.config_name+".log"'
+  main(*misc_utils.ini_task('test')) # generate log in '"test_"+PARAM.__class__.__name__+".log"'

@@ -28,7 +28,7 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
                 summary_writer, epoch, val_sgmd, infer_sgmd, dataset_name):
   """
   Args:
-    exp_dir : $PARAM.root_dir/exp/$PARAM.config_name
+    exp_dir : $PARAM.root_dir/exp/$PARAM.__class__.__name__
     val_sgmd : for validation&test. get loss, ppl.
     infer_sgmd : for validation&test. get bleu, rouge, accracy.
     dataset_name : dataset name, eg. 'val' or 'test'.
@@ -331,7 +331,7 @@ def main(exp_dir,
         log_file)
 
     # save or abandon ckpt
-    ckpt_name = PARAM.config_name+('_iter%d_trloss%.4f_valloss%.4f_valppl%.4f_lr%.2e_duration%ds' % (
+    ckpt_name = misc_utils.config_name()+('_iter%d_trloss%.4f_valloss%.4f_valppl%.4f_lr%.2e_duration%ds' % (
         epoch, trainOneEpochOutput.average_loss, valOneEpochOutputs.average_loss, valOneEpochOutputs.average_ppl,
         trainOneEpochOutput.learning_rate, trainOneEpochOutput.duration+valOneEpochOutputs.duration))
     if val_rel_impr > 0:
@@ -379,4 +379,4 @@ def main(exp_dir,
 
 if __name__ == '__main__':
   tf.logging.set_verbosity(tf.logging.INFO)
-  main(*misc_utils.ini_task('train')) # generate log in '"train_"+PARAM.config_name+".log"'
+  main(*misc_utils.ini_task('train')) # generate log in '"train_"+PARAM.__class__.__name__+".log"'

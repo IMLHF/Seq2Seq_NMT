@@ -10,7 +10,7 @@ from ..utils import dataset_utils
 from ..utils import misc_utils
 from ..utils import vocab_utils
 
-# ckpt_dir = os.path.join(PARAM.root_dir,'exp',PARAM.config_name,
+# ckpt_dir = os.path.join(PARAM.root_dir,'exp',PARAM.__class__.__name__,
 #                         'ckpt')
 
 def _get_model_creator():

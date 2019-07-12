@@ -4,11 +4,13 @@ class StaticKey(object):
   MODEL_INFER_KEY = 'infer'
   MODEL_VALIDATE_KEY = 'val'
 
+  def __class__name__(self): # config_name
+    return self.__class__.__name__
+
 class BaseConfig(StaticKey):
   # root_dir = '/mnt/d/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   # root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   root_dir = '/home/room/worklhf/nmt_seq2seq_first/'
-  config_name = 'base'
   min_TF_version = "1.12.0"
   num_keep_ckpts = 2
   '''
@@ -36,7 +38,7 @@ class BaseConfig(StaticKey):
   encoder_layer_start_residual = 2
   decoder_layer_start_residual = 2
   dtype=tf.float32
-  stack_bi_rnn = False # stack_bidirectional_dynamic_rnn if True else bidirectional_dynamic_rnn # TODO test performance
+  stack_bi_rnn = False # stack_bidirectional_dynamic_rnn if True else bidirectional_dynamic_rnn
 
   model_type = 'vanilla'
   '''
@@ -53,11 +55,14 @@ class BaseConfig(StaticKey):
   luong | scaled_luong | bahdanau | normed_bahdanau
   '''
 
-  attention_layer_size = 512 # add projection after attention_vec if not None, # # why (not None is needed). TODO
-  attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
-  output_attention = True # Whether use attention as the decoder cell output at each timestep. TODO test preformance
-  pass_state_using_attention = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
+  attention_layer_size = 512
+  '''
+  If None (default), use the context as attention at each time step. Otherwise, feed the context and cell output into the attention layer to generate attention at each time step. #  (not None is needed).
+  '''
 
+  attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
+  output_attention = True # Whether use attention as the decoder cell output at each timestep.
+  pass_state_using_attention = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
   encoder_type = 'bi'
   '''
   uni | bi
@@ -162,70 +167,69 @@ class BaseConfig(StaticKey):
   use_char_encode = False # ?
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
-  config_name = "C001_adam_greedy"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'greedy'
 
 class C001_adam_greedy_projection(BaseConfig): # DONE 15123
-  config_name = "C001_adam_greedy_projection"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'greedy'
   projection_encoder_final_state = True
 
 class C001_adam_greedy_stackbirnn(BaseConfig): # DONE 15123
-  config_name = "C001_adam_greedy_stackbirnn"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'greedy'
   stack_bi_rnn = True
 
 class C002_adam_sample(BaseConfig): # DONE 15123
-  config_name = "C002_adam_sample"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'sample'
   sampling_temperature = 1.0
 
 class C003_1_adam_beam_search5(BaseConfig): # DONE 15123
-  config_name = "C003_1_adam_beam_search5"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'beam_search'
   beam_width = 5
 
 class C003_2_adam_beam_search10(BaseConfig): # DONE 15123
-  config_name = "C003_2_adam_beam_search10"
   optimizer = 'adam'
   learning_rate = 0.001
   infer_mode = 'beam_search'
   beam_width = 10
 
-class C004_attention_scaled_luong(BaseConfig): # RUNNING 15123
-  config_name = 'C004_attention_scaled_luong'
+class C004_attention_scaled_luong(BaseConfig): # DONE 15123
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
 
-class C004_attention_scaled_luong_RNNoutput(BaseConfig): # RUNNING 15123
-  config_name = 'C004_attention_scaled_luong_RNNoutput'
+class C004_attention_scaled_luong_RNNoutput(BaseConfig): # DONE 15123
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
   output_attention = False
 
-class C004_attention_scaled_luong_nostate(BaseConfig): # pendding
-  config_name = 'C004_attention_scaled_luong_nostate'
+class C004_attention_scaled_luong_nostate(BaseConfig): # RUNNING 15123
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
   pass_state_using_attention = False
 
+class C004_attention_scaled_luong_deep(BaseConfig): # DONE 15123
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  encoder_num_layers = 3
+  decoder_num_layers = 6
 
-PARAM = C004_attention_scaled_luong_RNNoutput
+
+PARAM = C004_attention_scaled_luong_deep
 if __name__ == '__main__':
   pass
