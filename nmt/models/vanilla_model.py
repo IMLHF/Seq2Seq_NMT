@@ -333,8 +333,12 @@ class BaseModel(object):
 class RNNSeq2SeqModel(BaseModel):
   def _build_encoder(self,seq,seq_lengths):
     """
+    Args:
+      seq: [batch, time]
+      seq_lengths: [batch]
     Returns:
-      encoder_outputs, encoder_final_state
+      encoder_outputs: encoder hidden outputs, [batch, time, ...]
+      encoder_final_state: encoder state, [layers, 2(c,h), batch, n_units]
     """
     if PARAM.time_major:
       seq = tf.transpose(seq)
@@ -365,6 +369,7 @@ class RNNSeq2SeqModel(BaseModel):
             swap_memory=True
         )
         # self._debug=encoder_state[0][0].get_shape().as_list()
+        # encoder_state: [layers, 2(c,h), batch, units]
       elif PARAM.encoder_type == "bi":
         assert PARAM.encoder_num_layers*2 == PARAM.decoder_num_layers, "2*encoder_layers == decoder_layers if bidirectional rnn used."
         fw_multi_cell = model_helper.multiRNNCell(
@@ -413,6 +418,7 @@ class RNNSeq2SeqModel(BaseModel):
           )
           encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
 
+        #bi_encoder_state : [2(fw,bw), layers, 2(c,h), batch, units]
         if PARAM.encoder_num_layers == 1:
           encoder_state = bi_encoder_state
         else:
@@ -425,7 +431,6 @@ class RNNSeq2SeqModel(BaseModel):
       else:
         raise ValueError("Unknown encoder_type %s" % PARAM.encoder_type)
 
-    # encoder_state:[2(fw,bw), layers, 2(c,h), batch, units] if bidirection else [layers, 2(c,h), batch, units]
     return encoder_outputs, encoder_state
 
   def _build_decoder_cell(

@@ -4,6 +4,8 @@ from . import vanilla_model
 from . import model_helper
 from ..FLAGS import PARAM
 
+__all__ = ["RNNAttentionModel"]
+
 class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
   def _prepare_beam_search_decoder_inputs(
           self, beam_width, memory, source_sequence_length, encoder_state):
