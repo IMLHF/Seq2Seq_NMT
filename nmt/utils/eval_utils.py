@@ -16,7 +16,7 @@
 """Utility for evaluating various tasks, e.g., translation & summarization."""
 import codecs
 import math
-# from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.bleu_score import corpus_bleu
 import os
 import re
 import subprocess
@@ -93,8 +93,6 @@ def _clean(sentence, subword_option):
 # Follow //transconsole/localization/machine_translation/metrics/bleu_calc.py
 def _bleu(ref_file, trans_file, subword_option=None):
   """Compute BLEU scores and handling BPE."""
-  max_order = 4 # n_gram
-  smooth = False
 
   ref_files = [ref_file]
   reference_text = []
@@ -117,12 +115,16 @@ def _bleu(ref_file, trans_file, subword_option=None):
       line = _clean(line, subword_option=None)
       translations.append(line.split(" "))
 
-  # bleu_score, precisions, bp, ratio, translation_length, reference_length
-  bleu_score, _, _, _, _, _ = bleu.compute_bleu( # faster than nltk
-      per_segment_references, translations, max_order, smooth)
-  # nltk_bleu_score = corpus_bleu(per_segment_references, translations)
+  # max_order = 4 # n_gram
+  # smooth = False
+  # # bleu_score, precisions, bp, ratio, translation_length, reference_length
+  # bleu_score, _, _, _, _, _ = bleu.compute_bleu( # faster than nltk
+  #     per_segment_references, translations, max_order, smooth)
+
+  # nltk_blue open toolkit, more persuasiveness.
+  nltk_bleu_score = corpus_bleu(per_segment_references, translations)
   # print(bleu_score, nltk_bleu_score)
-  return 100 * bleu_score
+  return 100 * nltk_bleu_score
 
 
 def _rouge(ref_file, summarization_file, subword_option=None):
