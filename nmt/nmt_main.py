@@ -1,6 +1,6 @@
 import tensorflow as tf
 import sys
-# import os
+import os
 
 from .utils import misc_utils
 # from .FLAGS import PARAM
@@ -25,6 +25,7 @@ def main(_):
 
 
 if __name__ == '__main__':
+  os.environ['CUDA_VISIBLE_DEVICES'] = ""
   tf.logging.set_verbosity(tf.logging.INFO)
   tf.app.run(main=main, argv=sys.argv)
   # tensorboard --port 22222 --logdir /tmp/nmt_model/
