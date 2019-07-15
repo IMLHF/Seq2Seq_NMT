@@ -160,6 +160,7 @@ def get_batch_inputs_form_dataset(log_file,
 
   batched_iter = src_tgt_dataset.make_initializable_iterator()
   src_ids, tgt_input_ids, tgt_output_ids, src_seq_len, tgt_seq_len = batched_iter.get_next()
+  # all: [batch, time]
   return DataSetsOutputs(
     initializer=batched_iter.initializer,
     source_id_seq=src_ids,
