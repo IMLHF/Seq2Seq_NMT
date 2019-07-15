@@ -18,7 +18,7 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
       encoder_state: [layer, 2(c, h: for lstm), batch, ...]
     """
     if PARAM.encoder_type == "uni" or PARAM.encoder_type == "bi":
-      return super(GNMTAttentionModel, self)._build_decoder(seq, seq_lengths)
+      return super(GNMTAttentionModel, self)._build_encoder(seq, seq_lengths)
     if PARAM.encoder_type != "gnmt":
       raise ValueError("Unknown encoder type (%s) for gnmt_model." % PARAM.encoder_type)
 
@@ -127,7 +127,7 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
     attention_mechanism = self._create_attention_mechanism(PARAM.decoder_num_units,
                                                            # num_unit: set query dim to project to key dim
                                                            memory,
-                                                           source_seq_lengths)
+                                                           self.source_seq_lengths)
     # rnn_cells
     rnn_cells, fist_rnn_cell = model_helper.multiRNNCell(
         unit_type=PARAM.decoder_unit_type,
@@ -156,7 +156,8 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
       name='GNMTAttention'
     )
 
-    cell = GNMTAttentionMultiCell(attentioned_cell, rnn_cells._cells,
+    decoder_cells = [attentioned_cell] + rnn_cells._cells[1:]
+    cell = GNMTAttentionMultiCell(decoder_cells,
                                   use_new_attention=PARAM.GNMT_current_attention)
 
     if PARAM.pass_state_E2D:
@@ -174,16 +175,14 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
 class GNMTAttentionMultiCell(tf.nn.rnn_cell.MultiRNNCell):
   """A MultiCell with GNMT attention style."""
 
-  def __init__(self, attention_cell, cells, use_new_attention=False):
+  def __init__(self, cells, use_new_attention=False):
     """Creates a GNMTAttentionMultiCell.
 
     Args:
-      attention_cell: An instance of AttentionWrapper.
-      cells: A list of RNNCell wrapped with AttentionInputWrapper.
+      cells: A list of RNNCell.
       use_new_attention: Whether to use the attention generated from current
         step bottom layer's output. Default is False.
     """
-    cells = [attention_cell] + cells
     self.use_new_attention = use_new_attention
     super(GNMTAttentionMultiCell, self).__init__(cells, state_is_tuple=True)
 
