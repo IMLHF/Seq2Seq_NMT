@@ -143,7 +143,7 @@ class BaseModel(object):
         encoder_outputs = None
         encoder_final_state = None
       else:
-        # encoder_outputs: [batch, time, 2*units] if bidirection else [[batch, time, units]]
+        # encoder_outputs: [batch, time, 2*units] if bidirection else [batch, time, units]
         # encoder_final_state: [layers, 2(c,h), batch, units]
         encoder_outputs, encoder_final_state = self._build_encoder(
             self.source_id_seq,
@@ -342,6 +342,7 @@ class RNNSeq2SeqModel(BaseModel):
     """
     if PARAM.time_major:
       seq = tf.transpose(seq)
+      # seq: [time, batch, ...]
 
     with tf.variable_scope("encoder"):
       encoder_inputs = tf.nn.embedding_lookup(self.embedding_encoder,
@@ -372,6 +373,7 @@ class RNNSeq2SeqModel(BaseModel):
         # encoder_state: [layers, 2(c,h), batch, units]
       elif PARAM.encoder_type == "bi":
         assert PARAM.encoder_num_layers*2 == PARAM.decoder_num_layers, "2*encoder_layers == decoder_layers if bidirectional rnn used."
+        residual_fn = model_helper.stack_bi_rnn_residual_fn if PARAM.stack_bi_rnn else None
         fw_multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
             num_units=PARAM.encoder_num_units,
@@ -381,7 +383,7 @@ class RNNSeq2SeqModel(BaseModel):
             droprate=PARAM.encoder_drop_rate,
             mode=self.mode,
             num_gpus=PARAM.num_gpus,
-            stack_bi_rnn=PARAM.stack_bi_rnn,
+            residual_fn=residual_fn
         )
         bw_multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
@@ -392,7 +394,7 @@ class RNNSeq2SeqModel(BaseModel):
             droprate=PARAM.encoder_drop_rate,
             mode=self.mode,
             num_gpus=PARAM.num_gpus,
-            stack_bi_rnn=PARAM.stack_bi_rnn,
+            residual_fn=residual_fn
         )
         if PARAM.stack_bi_rnn:
           fw_multi_cell = fw_multi_cell._cells
@@ -418,7 +420,8 @@ class RNNSeq2SeqModel(BaseModel):
           )
           encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
 
-        #bi_encoder_state : [2(fw,bw), layers, 2(c,h), batch, units]
+        # encoder_outputs: [time, batch, ...] if time_major else [batch, time, ...]
+        # bi_encoder_state : [2(fw,bw), layers, 2(c,h), batch, units]
         if PARAM.encoder_num_layers == 1:
           encoder_state = bi_encoder_state
         else:
@@ -510,7 +513,8 @@ class RNNSeq2SeqModel(BaseModel):
           helper = tf.contrib.seq2seq.SampleEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token,
               softmax_temperature=sampling_temperature,
-              seed=time.time())
+              # seed=time.time(),
+          )
         elif PARAM.infer_mode == "greedy":
           helper = contrib.seq2seq.GreedyEmbeddingHelper(
               self.embedding_decoder, start_tokens, end_token)
@@ -550,7 +554,7 @@ class RNNSeq2SeqModel(BaseModel):
         decoder_inputs = tf.nn.embedding_lookup(self.embedding_decoder, # ids->embeding
                                                 self.target_in_id_seq) # [batch, time, embedding_vec]
         if PARAM.time_major:
-          decoder_inputs = tf.transpose(decoder_inputs, [1, 0, 2]) # [time, batch, embedding_vec]
+          decoder_inputs = tf.transpose(decoder_inputs, [1, 0, 2]) # final: [time, batch, embedding_vec]
 
         decoder_helper = contrib.seq2seq.TrainingHelper(decoder_inputs,
                                                         self.target_seq_lengths,

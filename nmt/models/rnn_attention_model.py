@@ -51,10 +51,9 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
 
 
   def _build_decoder_cell(self, encoder_outputs, encoder_state):
-    # memory [batch, time, ...]
     memory = encoder_outputs
-    if PARAM.time_major:
-      memory = tf.transpose(encoder_outputs, [1,0,2])
+    if PARAM.time_major: # ensure memory dim: [batch, time, ...]
+      memory = tf.transpose(encoder_outputs, [1,0,2]) # [batch, time, ...]
 
     source_seq_lengths = self.source_seq_lengths
 
@@ -71,8 +70,8 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
                                                            memory,
                                                            source_seq_lengths)
 
-    # rnn_cell
-    rnn_cell = model_helper.multiRNNCell(
+    # rnn_cells
+    rnn_cells = model_helper.multiRNNCell(
         unit_type=PARAM.decoder_unit_type,
         num_units=PARAM.decoder_num_units,
         num_layers=PARAM.decoder_num_layers,
@@ -86,7 +85,7 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
     # alignment (only in greedy INFER mode)
     alignment_history = (self.mode == PARAM.MODEL_INFER_KEY and PARAM.infer_mode == 'greedy')
     attentioned_cell = tf.contrib.seq2seq.AttentionWrapper(
-      rnn_cell,
+      rnn_cells,
       attention_mechanism,
       attention_layer_size=PARAM.attention_layer_size,
       alignment_history=alignment_history,
@@ -96,7 +95,7 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
     )
 
     # whether pass encoder_state to decoder
-    if PARAM.pass_state_using_attention:
+    if PARAM.pass_state_E2D:
       decoder_initial_state = attentioned_cell.zero_state(batch_size, self.dtype).clone(
           cell_state=encoder_state)
     else:

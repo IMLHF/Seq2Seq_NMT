@@ -35,7 +35,7 @@ class BaseConfig(StaticKey):
   projection_encoder_final_state = False
   encoder_num_layers = 2
   decoder_num_layers = 4
-  encoder_layer_start_residual = 2
+  encoder_layer_start_residual = 2 # layer id start at 1
   decoder_layer_start_residual = 2
   dtype=tf.float32
   stack_bi_rnn = False # stack_bidirectional_dynamic_rnn if True else bidirectional_dynamic_rnn
@@ -60,14 +60,16 @@ class BaseConfig(StaticKey):
   If None (default), use the context as attention at each time step. Otherwise, feed the context and cell output into the attention layer to generate attention at each time step. #  (not None is needed).
   '''
 
+  GNMT_new_attention = False # for GNMT
   attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
   output_attention = True # Whether use attention as the decoder cell output at each timestep.
-  pass_state_using_attention = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
+  pass_state_E2D = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
   encoder_type = 'bi'
   '''
-  uni | bi
-  For bi, we build num_encoder_layers/2 bi-directional layers.
-  For gnmt, we build 1 bi-directional layer, and (num_encoder_layers - 1) uni-directional layers.
+  uni | bi | gnmt
+  For uni, we build encoder_num_layers unidirectional layers.
+  For bi, we build encoder_num_layers bidirectional layers.
+  For gnmt, we build 1 bidirectional layer, and (encoder_num_layers - 1) unidirectional layers.
   '''
 
   time_major= False # Whether to use time-major mode for dynamic RNN.
@@ -115,7 +117,7 @@ class BaseConfig(StaticKey):
   tgt_max_len_infer_factor = 2.0 # tgt_max_len_infer = src_seq_max_len*tgt_max_len_infer_factor
 
   encoder_unit_type = 'lstm'
-  decoder_unit_type = 'lstm' # lstm | gru | layer_norm_lstm | nas
+  decoder_unit_type = 'lstm' # lstm | layer_norm_lstm | gru | nas, (gru and nas is not tested.)
   encoder_forget_bias = 1.0
   decoder_forget_bias = 1.0
   encoder_drop_rate = 0.5
@@ -219,7 +221,7 @@ class C004_attention_scaled_luong_nostate(BaseConfig): # RUNNING 15123
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
-  pass_state_using_attention = False
+  pass_state_E2D = False
 
 class C004_attention_scaled_luong_deep(BaseConfig): # DONE 15123
   model_type = 'standard_attention'
