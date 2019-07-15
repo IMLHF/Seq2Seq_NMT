@@ -3,9 +3,9 @@ import os
 import tensorflow as tf
 
 from ..FLAGS import PARAM
-# from models import gnmt_model
 from . import vanilla_model
 from . import rnn_attention_model
+from . import gnmt_model
 from ..utils import dataset_utils
 from ..utils import misc_utils
 from ..utils import vocab_utils
@@ -15,12 +15,12 @@ from ..utils import vocab_utils
 
 def _get_model_creator():
   # model_creator = vanilla_model.RNNSeq2SeqModel
-  # if PARAM.model_type in ['gnmt','gnmt_current']:
-  #   # model_creator = gnmt_model.GNMTModel
   if PARAM.model_type == 'vanilla':
     model_creator = vanilla_model.RNNSeq2SeqModel
   elif PARAM.model_type == 'standard_attention':
     model_creator = rnn_attention_model.RNNAttentionModel
+  elif PARAM.model_type == 'gnmt':
+    model_creator = gnmt_model.GNMTAttentionModel
   else:
     raise ValueError('Unknown model type %s.' %
                      PARAM.model_type)

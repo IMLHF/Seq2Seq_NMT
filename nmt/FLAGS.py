@@ -42,11 +42,10 @@ class BaseConfig(StaticKey):
 
   model_type = 'vanilla'
   '''
-  vanilla | standard_attention | gnmt | gnmt_current
+  vanilla | standard_attention | gnmt
   vanilla: vanilla seq2seq model
   standard: use top layer to compute attention.
-  gnmt: GNMT style of computing attention, use pervious bottom layer to compute attention.
-  gnmt_current: similar to gnmt, but use current bottom layer to compute attention.
+  gnmt: google neural machine translation model.
   '''
 
   attention = 'scaled_luong'
@@ -60,7 +59,12 @@ class BaseConfig(StaticKey):
   If None (default), use the context as attention at each time step. Otherwise, feed the context and cell output into the attention layer to generate attention at each time step. #  (not None is needed).
   '''
 
-  GNMT_new_attention = False # for GNMT
+  GNMT_current_attention = False
+  """
+  for GNMT
+   True: use current bottom layer to compute attention.
+   False: use pervious bottom layer to compute attention.
+  """
   attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
   output_attention = True # Whether use attention as the decoder cell output at each timestep.
   pass_state_E2D = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
