@@ -59,7 +59,7 @@ class BaseConfig(StaticKey):
   If None (default), use the context as attention at each time step. Otherwise, feed the context and cell output into the attention layer to generate attention at each time step. #  (not None is needed).
   '''
 
-  GNMT_current_attention = False
+  GNMT_current_attention = True
   """
   for GNMT
    True: use current bottom layer to compute attention.
@@ -241,6 +241,22 @@ class nmt_test(BaseConfig):
   optimizer = 'adam'
   learning_rate = 0.001
 
-PARAM = nmt_test
+class gnmt_test_curFalse(BaseConfig):
+  model_type = 'gnmt'
+  encoder_type = 'bi'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  GNMT_current_attention = False
+
+class gnmt_test_curTrue(BaseConfig):
+  model_type = 'gnmt'
+  encoder_type = 'bi'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  GNMT_current_attention = True
+
+PARAM = gnmt_test_curFalse
 if __name__ == '__main__':
   pass
