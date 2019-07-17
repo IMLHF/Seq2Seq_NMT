@@ -189,7 +189,7 @@ class BaseModel(object):
       # sample_words for decoding
       self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
           self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
-      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
+      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int32(self.sample_id))
       return
 
     # loss TODO

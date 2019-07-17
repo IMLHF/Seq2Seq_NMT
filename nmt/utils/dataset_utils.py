@@ -52,7 +52,7 @@ def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_eos_id):
       # Bucket sentence pairs by the length of their source sentence and target
       # sentence.
       bucket_id = tf.maximum(src_len // bucket_width, tgt_len // bucket_width)
-      return tf.to_int64(tf.minimum(PARAM.num_buckets, bucket_id))
+      return tf.to_int32(tf.minimum(PARAM.num_buckets, bucket_id))
 
   def reduce_func(unused_key, windowed_data):
     return _batching_func_with_labels(windowed_data, batch_size, src_eos_id, tgt_eos_id)
