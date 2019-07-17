@@ -329,7 +329,6 @@ class BaseModel(object):
     sess.run(self.assign_lr, feed_dict={self.new_lr:new_lr})
 
 
-
 class RNNSeq2SeqModel(BaseModel):
   def _build_encoder(self,seq,seq_lengths):
     """
@@ -468,26 +467,28 @@ class RNNSeq2SeqModel(BaseModel):
       A tuple: (rnn_noproj_outputs, logits, sample_id, decoder_final_state)
         logits dim: [time, batch_size, vocab_size] when time_major=True
     """
-    tgt_sos_id = tf.cast(
-      self.tgt_vocab_table.lookup(tf.constant(PARAM.sos)), tf.int32)
-    tgt_eos_id = tf.cast(
-      self.tgt_vocab_table.lookup(tf.constant(PARAM.eos)), tf.int32)
-    start_tokens = tf.fill([self.batch_size], tgt_sos_id)
-    end_token = tgt_eos_id
-
-    if PARAM.tgt_max_len_infer:
-      max_rnn_iterations = PARAM.tgt_max_len_infer
-      misc_utils.printinfo("  decoding max_rnn_iterations %d" % max_rnn_iterations)
-    else:
-      max_src_len = tf.reduce_max(self.source_seq_lengths)
-      max_rnn_iterations = tf.to_int32(tf.round(
-        tf.to_float(max_src_len) * PARAM.tgt_max_len_infer_factor))
 
     with tf.variable_scope("decoder") as decoder_scope:
       # region decoder
       cell, decoder_init_state = self._build_decoder_cell(encoder_outputs, encoder_final_state)
       ## inference
       if self.mode == PARAM.MODEL_INFER_KEY:
+        # infer inputs
+        tgt_sos_id = tf.cast(
+          self.tgt_vocab_table.lookup(tf.constant(PARAM.sos)), tf.int32)
+        tgt_eos_id = tf.cast(
+          self.tgt_vocab_table.lookup(tf.constant(PARAM.eos)), tf.int32)
+        start_tokens = tf.fill([self.batch_size], tgt_sos_id)
+        end_token = tgt_eos_id
+
+        if PARAM.tgt_max_len_infer:
+          max_rnn_iterations = PARAM.tgt_max_len_infer
+          misc_utils.printinfo("  decoding max_rnn_iterations %d" % max_rnn_iterations)
+        else:
+          max_src_len = tf.reduce_max(self.source_seq_lengths)
+          max_rnn_iterations = tf.to_int32(tf.round(
+            tf.to_float(max_src_len) * PARAM.tgt_max_len_infer_factor))
+
         decoder = None
         if PARAM.infer_mode == "beam_search":
           beam_width = PARAM.beam_width
