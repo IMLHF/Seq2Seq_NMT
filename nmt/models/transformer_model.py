@@ -59,7 +59,8 @@ def attention_score_mask(scores, KV_lengths, mask_value=None):
     mask before softmax.
   """
   if mask_value is None:
-    mask_value = dtypes.as_dtype(scores.dtype).as_numpy_dtype(-np.inf)
+    # mask_value = dtypes.as_dtype(scores.dtype).as_numpy_dtype(-np.inf)
+    mask_value = -2 ** 32 + 1.0
   time_kv = tf.shape(scores)[2]
   mask = tf.sequence_mask(KV_lengths, maxlen=time_kv) # [batch, time_kv]
   mask = tf.expand_dims(mask, 1) # [batch, 1, time_kv]
@@ -73,7 +74,8 @@ def causality_mask_for_self_attention(inputs, mask_value=None):
   mask before softmax.
   """
   if mask_value is None:
-    mask_value = dtypes.as_dtype(inputs.dtype).as_numpy_dtype(-np.inf)
+    # mask_value = dtypes.as_dtype(inputs.dtype).as_numpy_dtype(-np.inf)
+    mask_value = -2 ** 32 + 1.0
   diag_vals = tf.ones_like(inputs[0, :, :])  # (time_query, time_kv), always have "time_query == time_kv"
   tril = tf.linalg.LinearOperatorLowerTriangular(diag_vals).to_dense()  # (time_query, time_kv)
   masks = tf.tile(tf.expand_dims(tril, 0), [tf.shape(inputs)[0], 1, 1])  # (batch, time_query, time_kv)
@@ -83,7 +85,7 @@ def causality_mask_for_self_attention(inputs, mask_value=None):
   return outputs
 
 
-def query_time_mask_for_train(inputs, query_lengths, mask_value=None):
+def query_time_mask_for_train(inputs, query_lengths):
   """
   Args:
     inputs: [batch, time_query, time_kv], src_seq_length[0] is true length of scores[0, *]
@@ -95,14 +97,16 @@ def query_time_mask_for_train(inputs, query_lengths, mask_value=None):
     same to rnn_seq_lengths, no use for inference.
     action as sequence_mask.
   """
-  if mask_value is None:
-    mask_value = dtypes.as_dtype(inputs.dtype).as_numpy_dtype(-np.inf)
+  # if mask_value is None:
+  #   mask_value = 0.0
   time_query = tf.shape(inputs)[1]
-  mask = tf.sequence_mask(query_lengths, maxlen=time_query) # [batch, time_query]
+  mask = tf.sequence_mask(query_lengths, maxlen=time_query, dtype=inputs.dtype) # [batch, time_query]
   mask = tf.expand_dims(mask, 2) # [batch, time_query, 1]
   mask = tf.tile(mask, [1, 1, tf.shape(inputs)[2]]) # [batch, time_query, time_kv]
-  score_mask_values = mask_value * tf.ones_like(inputs)
-  return tf.where(mask, inputs, score_mask_values)
+  # score_mask_values = mask_value * tf.ones_like(inputs)
+  # return tf.where(mask, inputs, score_mask_values)
+  outputs = tf.multiply(inputs, mask)
+  return outputs
 
 def abandoned_mask(inputs, queries=None, keys=None, type=None):
   """Masks paddings on keys or queries to inputs
@@ -189,6 +193,7 @@ def scaled_dot_product_attention(Q, K, V, KV_lengths, Q_lengths=None,
     # attention_score_mask
     # outputs = mask(outputs, Q, K, type="key")
     outputs = attention_score_mask(outputs, KV_lengths)
+
 
     # causality or future blinding masking
     if causality:
@@ -432,12 +437,17 @@ class Transformer(vanilla_model.BaseModel):
           # feed forward
           dec = positionwise_FC(dec, num_units=[dec_d_positionwise_FC, dec_d_model]) # [batch, time, dec_d_model]
 
-      if dec_d_model != tgt_embed_size:
-        dec = tf.layers.dense(dec, tgt_embed_size)
 
-    weights = tf.transpose(self.embedding_decoder) # [tgt_embed_size, vocab_size]
-    logits = tf.einsum('ntd,dk->ntk', dec, weights) # [batch, time, vocab_size]
+      if PARAM.before_logits_is_tgt_embedding:
+        if dec_d_model != tgt_embed_size:
+          dec = tf.layers.dense(dec, tgt_embed_size)
+        weights = tf.transpose(self.embedding_decoder) # [tgt_embed_size, vocab_size]
+        logits = tf.einsum('ntd,dk->ntk', dec, weights) # [batch, time, vocab_size]
+      else:
+        logits = tf.layers.dense(dec, self.tgt_vocab_size)
+
     sample_id = tf.to_int32(tf.argmax(logits, axis=-1))
+    # logits = tf.check_numerics(logits,"NaN_INF233333333333333%d"%1,name="tmp")
     return logits, sample_id, None, dec
 
   def _build_decoder(self, encoder_outputs, encoder_state):
@@ -492,6 +502,7 @@ class Transformer(vanilla_model.BaseModel):
                                                                         tf.TensorShape([None, None]),
                                                                         tf.TensorShape([None, None, None]),
                                                                         tf.TensorShape([None, None])))
+      # logits
       return logits, sample_id, None, dec
 
 
