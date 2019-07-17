@@ -6,6 +6,7 @@ from ..FLAGS import PARAM
 from . import vanilla_model
 from . import rnn_attention_model
 from . import gnmt_model
+from . import transformer_model
 from ..utils import dataset_utils
 from ..utils import misc_utils
 from ..utils import vocab_utils
@@ -21,6 +22,8 @@ def _get_model_creator():
     model_creator = rnn_attention_model.RNNAttentionModel
   elif PARAM.model_type == 'gnmt':
     model_creator = gnmt_model.GNMTAttentionModel
+  elif PARAM.model_type == 'transformer':
+    model_creator = transformer_model.Transformer
   else:
     raise ValueError('Unknown model type %s.' %
                      PARAM.model_type)
