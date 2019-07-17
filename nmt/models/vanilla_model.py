@@ -136,7 +136,7 @@ class BaseModel(object):
     self.output_layer = tf.layers.Dense( # output projection
         self.tgt_vocab_size, use_bias=False, name="output_projection")
 
-    with tf.variable_scope('dynamic_seq2seq',dtype=self.dtype):
+    with tf.variable_scope('nmt',dtype=self.dtype):
       # encoder
       if PARAM.language_model:
         misc_utils.printinfo("language modeling: no encoder", log_file)
