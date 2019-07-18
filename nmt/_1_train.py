@@ -67,6 +67,7 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
       val_loss += loss
       total_ppl += batch_sum_ppl
       data_len += current_bs
+      # print(current_bs, flush=True)
 
       # for ppl2
       # print(np.shape(mat_loss))
@@ -107,9 +108,8 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
       # print(current_bs, sample_words.shape)
       # translated text
       if PARAM.infer_mode == 'beam_search':
-        sample_words = np.array(sample_words[:,:,0]) # [words, batch_size] if time_major else [batch_size, words]
-      assert current_bs == (
-          sample_words.shape[1] if PARAM.time_major else sample_words.shape[0]), 'batch_size exception.'
+        sample_words = np.array(sample_words[:,:,0]) # [batch_size, words]
+      assert current_bs == sample_words.shape[0], 'batch_size exception.'
       for sentence_id in range(current_bs):
         translation = misc_utils.get_translation_text_from_samplewords(sample_words,
                                                                        sentence_id,
@@ -159,7 +159,7 @@ def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
   while True:
     try:
       (_, loss, lr, summary_train, global_step, current_bs,
-       #  mat_loss,
+       mat_loss,
        ) = (train_sgmd.session.run([
            train_sgmd.model.train_op,
            train_sgmd.model.loss,
@@ -167,9 +167,9 @@ def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
            train_sgmd.model.train_summary,
            train_sgmd.model.global_step,
            train_sgmd.model.batch_size,
-           #  train_sgmd.model.mat_loss,
+           train_sgmd.model.mat_loss,
        ]))
-      # print(np.shape(mat_loss))
+      # print(np.shape(mat_loss), flush=True)
       tr_loss += loss
       data_len += current_bs
       summary_writer.add_summary(summary_train, global_step)

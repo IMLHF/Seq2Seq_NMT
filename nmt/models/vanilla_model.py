@@ -77,9 +77,6 @@ class BaseModel(object):
     self.num_decoder_layers = PARAM.decoder_num_layers
     assert self.num_encoder_layers and self.num_decoder_layers, 'layers num error'
 
-    if PARAM.use_char_encode:
-      assert (not PARAM.time_major), "Can't use time major for char-level inputs."
-
     initializer = misc_utils.get_initializer(
         init_op=PARAM.init_op, init_weight=PARAM.init_weight)
     tf.get_variable_scope().set_initializer(initializer)
@@ -189,13 +186,13 @@ class BaseModel(object):
       # sample_words for decoding
       self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
           self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
-      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id)) # TODO
+      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
       return
 
     # loss TODO
     crossent = self._softmax_cross_entropy_loss(
         self.logits, rnn_outputs_for_sampled_sotmax, self.target_out_id_seq)
-    # mat_loss:[time, batch] if time_major else [batch, time]
+    # mat_loss: [batch, time]
     # loss: shape=()
     self.mat_loss, self.loss = loss_utils.masked_cross_entropy_loss(self.logits,
                                                                     crossent,
@@ -219,10 +216,7 @@ class BaseModel(object):
     -log(y_est_i) = cross_entropy = -y_true*log(y_est)
     so: ppl_per_sentense = exp(reduce_mean(cross_entropy,time_axis))
     '''
-    if PARAM.time_major:
-      self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, 0))) # reduce_sum batch
-    else:
-      self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
+    self.batch_sum_ppl = tf.reduce_sum(tf.exp(tf.reduce_mean(self.mat_loss, -1))) # reduce_sum batch
 
     # val end
     if self.mode == PARAM.MODEL_VALIDATE_KEY:
@@ -264,18 +258,20 @@ class BaseModel(object):
 
   def _softmax_cross_entropy_loss(
     self, logits, rnn_outputs_for_sampled_sotmax, labels):
-    """Compute softmax loss or sampled softmax loss."""
-    if PARAM.time_major:
-      labels = tf.transpose(labels)
+    """Compute softmax loss or sampled softmax loss.
+    logits: [batch, time, ...]
+    label:[batch, time]
+    """
+    labels = tf.transpose(labels)
     if PARAM.num_sampled_softmax > 0:
 
       is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
 
       inputs = rnn_outputs_for_sampled_sotmax
       if is_sequence:
-        labels = tf.reshape(labels, [-1, 1]) # [time*batch, 1] if time_major else [batch*time, 1]
+        labels = tf.reshape(labels, [-1, 1]) #  [batch*time, 1]
         inputs = tf.reshape(rnn_outputs_for_sampled_sotmax,
-                            [-1, PARAM.decoder_num_units])  # [time*batch, depth] if time_major else [batch*time, depth]
+                            [-1, PARAM.decoder_num_units])  # [batch*time, depth]
 
       crossent = tf.nn.sampled_softmax_loss(
           weights=tf.transpose(self.output_layer.kernel),
@@ -287,10 +283,7 @@ class BaseModel(object):
           partition_strategy="div")
 
       if is_sequence:
-        if PARAM.time_major:
-          crossent = tf.reshape(crossent, [-1, self.batch_size])
-        else:
-          crossent = tf.reshape(crossent, [self.batch_size, -1])
+        crossent = tf.reshape(crossent, [self.batch_size, -1])
 
     else:
       # print(labels.get_shape().as_list(),logits.get_shape().as_list())
@@ -339,9 +332,6 @@ class RNNSeq2SeqModel(BaseModel):
       encoder_outputs: encoder hidden outputs, [batch, time, ...]
       encoder_final_state: encoder state, [layers, 2(c,h), batch, n_units]
     """
-    if PARAM.time_major:
-      seq = tf.transpose(seq)
-      # seq: [time, batch, ...]
 
     with tf.variable_scope("encoder"):
       encoder_inputs = tf.nn.embedding_lookup(self.embedding_encoder,
@@ -365,7 +355,6 @@ class RNNSeq2SeqModel(BaseModel):
             encoder_inputs,
             dtype=self.dtype,
             sequence_length=seq_lengths,
-            time_major=PARAM.time_major,
             swap_memory=True
         )
         # self._debug=encoder_state[0][0].get_shape().as_list()
@@ -404,7 +393,6 @@ class RNNSeq2SeqModel(BaseModel):
               encoder_inputs,
               dtype=self.dtype,
               sequence_length=seq_lengths,
-              time_major=PARAM.time_major,
           )
           encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), (fw_state, bw_state)
         else:
@@ -414,12 +402,11 @@ class RNNSeq2SeqModel(BaseModel):
               encoder_inputs,
               dtype=self.dtype,
               sequence_length=seq_lengths,
-              time_major=PARAM.time_major,
               swap_memory=True
           )
           encoder_outputs, bi_encoder_state = tf.concat(bi_outputs,-1), bi_state
 
-        # encoder_outputs: [time, batch, ...] if time_major else [batch, time, ...]
+        # encoder_outputs: [batch, time, ...]
         # bi_encoder_state : [2(fw,bw), layers, 2(c,h), batch, units]
         if PARAM.encoder_num_layers == 1:
           encoder_state = bi_encoder_state
@@ -465,7 +452,7 @@ class RNNSeq2SeqModel(BaseModel):
       a tuple: (encoder_outputs, encoder_final_state)
     Returns:
       A tuple: (rnn_noproj_outputs, logits, sample_id, decoder_final_state)
-        logits dim: [time, batch_size, vocab_size] when time_major=True
+        logits dim: [batch, time, vocab_size]
     """
 
     with tf.variable_scope("decoder") as decoder_scope:
@@ -534,7 +521,6 @@ class RNNSeq2SeqModel(BaseModel):
         decoder_outputs, final_context_state, _ = contrib.seq2seq.dynamic_decode(
             decoder,
             maximum_iterations=max_rnn_iterations,
-            output_time_major=PARAM.time_major,
             swap_memory=True,
             scope=decoder_scope
         )
@@ -554,12 +540,9 @@ class RNNSeq2SeqModel(BaseModel):
         '''
         decoder_inputs = tf.nn.embedding_lookup(self.embedding_decoder, # ids->embeding
                                                 self.target_in_id_seq) # [batch, time, embedding_vec]
-        if PARAM.time_major:
-          decoder_inputs = tf.transpose(decoder_inputs, [1, 0, 2]) # final: [time, batch, embedding_vec]
 
         decoder_helper = contrib.seq2seq.TrainingHelper(decoder_inputs,
-                                                        self.target_seq_lengths,
-                                                        time_major=PARAM.time_major)
+                                                        self.target_seq_lengths)
 
         decoder = contrib.seq2seq.BasicDecoder(
             cell,
@@ -571,7 +554,6 @@ class RNNSeq2SeqModel(BaseModel):
         # Dynamic decoding
         decoder_outputs, final_context_state, _ = contrib.seq2seq.dynamic_decode(
             decoder,
-            output_time_major=PARAM.time_major,
             swap_memory=True,
             scope=decoder_scope
         )

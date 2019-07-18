@@ -51,9 +51,7 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
 
 
   def _build_decoder_cell(self, encoder_outputs, encoder_state):
-    memory = encoder_outputs
-    if PARAM.time_major: # ensure memory dim: [batch, time, ...]
-      memory = tf.transpose(encoder_outputs, [1,0,2]) # [batch, time, ...]
+    memory = encoder_outputs # [batch, time, ...]
 
     source_seq_lengths = self.source_seq_lengths
 

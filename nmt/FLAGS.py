@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 class StaticKey(object):
   MODEL_TRAIN_KEY = 'train'
   MODEL_INFER_KEY = 'infer'
@@ -42,10 +43,11 @@ class BaseConfig(StaticKey):
 
   model_type = 'vanilla'
   '''
-  vanilla | standard_attention | gnmt
+  vanilla | standard_attention | gnmt | transformer
   vanilla: vanilla seq2seq model
   standard: use top layer to compute attention.
   gnmt: google neural machine translation model.
+  transformer: transformer.
   '''
 
   attention = 'scaled_luong'
@@ -67,7 +69,7 @@ class BaseConfig(StaticKey):
   """
   attention_cell_input_fn = None # A callable. The default is: lambda inputs, attention: array_ops.concat([inputs, attention], -1).
   output_attention = True # Whether use attention as the decoder cell output at each timestep.
-  pass_state_E2D = True # Whether to pass encoder's hidden state to decoder when using an attention based model. TODO test preformance
+  pass_state_E2D = True # Whether to pass encoder's hidden state to decoder when using an attention based model.
   encoder_type = 'bi'
   '''
   uni | bi | gnmt
@@ -75,8 +77,6 @@ class BaseConfig(StaticKey):
   For bi, we build encoder_num_layers bidirectional layers.
   For gnmt, we build 1 bidirectional layer, and (encoder_num_layers - 1) unidirectional layers.
   '''
-
-  time_major= False # Whether to use time-major mode for dynamic RNN.
   # num_embeddings_partitions = 0 # ?
   # endregion
 
@@ -113,10 +113,10 @@ class BaseConfig(StaticKey):
   eos = '</s>' # End- of-sentence symbol.
   share_vocab = False # use same vocab table for source and target
   check_special_token = True # ?
-  src_max_len = 50
+  src_max_len = 50 # for train
   tgt_max_len = 50
 
-  src_max_len_infer = None
+  src_max_len_infer = None # for decode
   tgt_max_len_infer = None
   tgt_max_len_infer_factor = 2.0 # tgt_max_len_infer = src_seq_max_len*tgt_max_len_infer_factor
 
@@ -124,8 +124,8 @@ class BaseConfig(StaticKey):
   decoder_unit_type = 'lstm' # lstm | layer_norm_lstm | gru | nas, (gru and nas is not tested.)
   encoder_forget_bias = 1.0
   decoder_forget_bias = 1.0
-  encoder_drop_rate = 0.5
-  decoder_drop_rate = 0.5
+  encoder_drop_rate = 0.3
+  decoder_drop_rate = 0.3
   max_gradient_norm = 5.0 # gradient clip
   batch_size = 128
   batches_to_logging = 300
@@ -169,8 +169,21 @@ class BaseConfig(StaticKey):
   # Extra
   #################
   language_model = False # True to train a language model, ignoring encoder
-
   use_char_encode = False # ?
+
+
+  ##########################
+  # Hparam for Transformer
+  ##########################
+  # n_blocks_enc = encoder_num_layers
+  # n_blocks_dec = decoder_num_layers
+  # d_model = encoder_num_units = decoder_num_units = src_embed_size = tgt_embed_size
+  enc_d_positionwise_FC = 2048
+  dec_d_positionwise_FC = 2048
+  enc_num_att_heads = 8
+  dec_num_att_heads = 8
+  before_logits_is_tgt_embedding = True
+
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
   optimizer = 'adam'
@@ -249,7 +262,7 @@ class gnmt_test_curFalse(BaseConfig):
   learning_rate = 0.001
   GNMT_current_attention = False
 
-class gnmt_test_curTrue(BaseConfig):
+class gnmt_test_curTrue(BaseConfig): # better
   model_type = 'gnmt'
   encoder_type = 'bi'
   attention = 'scaled_luong'
@@ -257,6 +270,24 @@ class gnmt_test_curTrue(BaseConfig):
   learning_rate = 0.001
   GNMT_current_attention = True
 
-PARAM = gnmt_test_curFalse
+class C004_attention_scaled_luong_maskedlogits(BaseConfig):
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+
+class TransformerTest(BaseConfig):
+  batch_size = 256
+  encoder_num_layers = 3
+  decoder_num_layers = 3
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  before_logits_is_tgt_embedding = False
+
+
+
+PARAM = TransformerTest
+
 if __name__ == '__main__':
   pass

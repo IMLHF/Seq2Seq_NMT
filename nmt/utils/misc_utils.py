@@ -171,19 +171,17 @@ def add_summary(summary_writer, global_step, tag, value):
 
 def get_translation_text_from_samplewords(sample_words, sentence_id, eos, subword_option):
   """
-  sample_words: [words, batch] if time_major else [batch, words]
+  sample_words: [batch, words]
   """
   if eos:
     eos = eos.encode("utf-8")
 
-  if PARAM.time_major:
-    sentence = sample_words[:,sentence_id].tolist()
-  else:
-    sentence = sample_words[sentence_id].tolist()
+  sentence = sample_words[sentence_id].tolist()
 
   # If there is an eos symbol in outputs, cut them at that position.
   if eos and eos in sentence:
     sentence = sentence[:sentence.index(eos)]
+    sentence = sentence[sentence.index(eos)] = "233" # TODO rm
 
   if (not hasattr(sentence, "__len__") and  # for numpy array
           not isinstance(sentence, collections.Iterable)):

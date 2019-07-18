@@ -14,7 +14,7 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
       seq: [batch, time]
       seq_lengths: [batch]
     Returns:
-      encoder_outputs: [time, batch, ...] if time_major else [batch, time, ...]
+      encoder_outputs: [batch, time, ...]
       encoder_state: [layer, 2(c, h: for lstm), batch, ...]
     """
     if PARAM.encoder_type == "uni" or PARAM.encoder_type == "bi":
@@ -28,10 +28,6 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
     misc_utils.printinfo("\n# Build a GNMT encoder", self.log_file)
     misc_utils.printinfo("  num_bi_layers = %d" % num_bi_layers)
     misc_utils.printinfo("  num_uni_layers = %d" % num_uni_layers)
-
-    if PARAM.time_major:
-      seq = tf.transpose(seq)
-      # seq [time, batch, ...]
 
     with tf.variable_scope("encoder_gnmt"):
       encoder_inputs = tf.nn.embedding_lookup(self.embedding_decoder, seq)
@@ -65,8 +61,7 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
             bw_multi_cell,
             encoder_inputs,
             dtype=self.dtype,
-            sequence_length=seq_lengths,
-            time_major=PARAM.time_major,
+            sequence_length=seq_lengths
         )
         bi_outputs, bi_state = tf.concat(bi_outputs,-1), (fw_state, bw_state)
       else:
@@ -76,12 +71,11 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
             encoder_inputs,
             dtype=self.dtype,
             sequence_length=seq_lengths,
-            time_major=PARAM.time_major,
             swap_memory=True
         )
         bi_outputs, bi_state = tf.concat(bi_outputs,-1), bi_state
 
-      # bi_outputs: [time, batch, ...] if time_major else [batch, time, ...]
+      # bi_outputs: [batch, time, ...]
       # bi_state : [2(fw,bw), layers, 2(c,h), batch, units]
       # endregion GNMT bi-RNN in encoder
 
@@ -102,7 +96,6 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
           bi_outputs,
           dtype=self.dtype,
           sequence_length=seq_lengths,
-          time_major=PARAM.time_major,
           swap_memory=True
       )
 
@@ -110,10 +103,7 @@ class GNMTAttentionModel(rnn_attention_model.RNNAttentionModel):
   def _build_decoder_cell(self, encoder_outputs, encoder_state):
     # GNMT attention
 
-    memory = encoder_outputs # [time, batch, ...] if time_major else [batch, time, ...]
-    if PARAM.time_major:
-      # ensure memory is [batch, time, ...]
-      memory = tf.transpose(encoder_outputs, [1,0,2]) # [batch, time, ...]
+    memory = encoder_outputs # [batch, time, ...]
 
     # for beam_search
     batch_size = self.batch_size
