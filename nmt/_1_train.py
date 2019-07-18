@@ -99,13 +99,16 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
     try:
       (sample_words, # words list, text, dim:[beam_width, batch_size, words] if beam_search else [batch_size, words]
        current_bs,
+       #  debug,
        ) = (infer_sgmd.session.run(
            [
             infer_sgmd.model.sample_words,
             infer_sgmd.model.batch_size,
+            # infer_sgmd.model.debug
             ]))
 
       # print(current_bs, sample_words.shape)
+      # print(debug, flush=True)
       # translated text
       if PARAM.infer_mode == 'beam_search':
         sample_words = np.array(sample_words[:,:,0]) # [batch_size, words]
@@ -147,7 +150,7 @@ class TrainOneEpochOutputs(
                            ("average_loss", "duration", "learning_rate"))):
   pass
 
-def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
+def train_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
                     summary_writer, epoch, train_sgmd):
   tr_loss, i, data_len, lr = 0.0, 0, 0, -1
   s_time = time.time()
@@ -156,10 +159,15 @@ def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
                          feed_dict={train_sgmd.dataset.src_textline_file_ph: src_textline_file,
                                     train_sgmd.dataset.tgt_textline_file_ph:tgt_textline_file})
 
+  trans_file = os.path.join(exp_dir, '%s_set_translate_result_iter%04d.txt' % ("train", epoch))
+  trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
+  trans_f.write("")  # Write empty string to ensure file is created
+
   while True:
     try:
       (_, loss, lr, summary_train, global_step, current_bs,
        mat_loss,
+       sample_words
        ) = (train_sgmd.session.run([
            train_sgmd.model.train_op,
            train_sgmd.model.loss,
@@ -168,11 +176,21 @@ def train_one_epoch(log_file, src_textline_file, tgt_textline_file,
            train_sgmd.model.global_step,
            train_sgmd.model.batch_size,
            train_sgmd.model.mat_loss,
+           train_sgmd.model.sample_words
        ]))
       # print(np.shape(mat_loss), flush=True)
       tr_loss += loss
       data_len += current_bs
       summary_writer.add_summary(summary_train, global_step)
+
+      # train_decoder ans
+      for sentence_id in range(current_bs):
+        translation = misc_utils.get_translation_text_from_samplewords(sample_words,
+                                                                       sentence_id,
+                                                                       eos=PARAM.eos,
+                                                                       subword_option=PARAM.subword_option)
+        trans_f.write((translation+b"\n").decode("utf-8"))
+
       # msg = 'batchstep, loss:%.4f, lr:%.4f.' % (loss, lr)
       # misc_utils.printinfo(msg, log_file)
       i += 1
@@ -268,7 +286,8 @@ def main(exp_dir,
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
     misc_utils.printinfo("%s, Epoch %03d:" % (time.ctime(), epoch), log_file)
     # train
-    trainOneEpochOutput = train_one_epoch(log_file,
+    trainOneEpochOutput = train_one_epoch(exp_dir,
+                                          log_file,
                                           train_set_textlinefile_src,
                                           train_set_textlinefile_tgt,
                                           summary_writer, epoch, train_sgmd)
