@@ -16,7 +16,7 @@ class DataSetsOutputs(
                             "src_textline_file_ph", "tgt_textline_file_ph"))):
   pass
 
-def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_eos_id):
+def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_eos_id, pad_vocab_id):
   return dataset.padded_batch(
       batch_size,
       # The first three entries are the source and target line rows;
@@ -32,13 +32,16 @@ def _batching_func_with_labels(dataset, batch_size, src_eos_id, tgt_eos_id):
       # (Though notice we don't generally need to do this since
       # later on we will be masking out calculations past the true sequence.
       padding_values=(
-          src_eos_id,  # src
-          tgt_eos_id,  # tgt_input
-          tgt_eos_id,  # tgt_output
+          pad_vocab_id,
+          pad_vocab_id,
+          pad_vocab_id,
+          # src_eos_id,  # src
+          # tgt_eos_id,  # tgt_input
+          # tgt_eos_id,  # tgt_output
           0,  # src_len -- unused
           0))  # tgt_len -- unused
 
-def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_eos_id):
+def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_eos_id, pad_vocab_id):
   def key_func(unused_1, unused_2, unused_3, src_len, tgt_len):
       # Calculate bucket_width by maximum source sequence length.
       # Pairs with length [0, bucket_width) go to bucket 0, length
@@ -55,7 +58,7 @@ def _bucket_dataset_by_length(dataset, batch_size, src_eos_id, tgt_eos_id):
       return tf.to_int64(tf.minimum(PARAM.num_buckets, bucket_id))
 
   def reduce_func(unused_key, windowed_data):
-    return _batching_func_with_labels(windowed_data, batch_size, src_eos_id, tgt_eos_id)
+    return _batching_func_with_labels(windowed_data, batch_size, src_eos_id, tgt_eos_id, pad_vocab_id)
 
   batched_dataset = dataset.apply(
       tf.data.experimental.group_by_window(
@@ -80,6 +83,8 @@ def get_batch_inputs_form_dataset(log_file,
   output_buffer_size = PARAM.output_buffer_size
   if not PARAM.output_buffer_size:
     output_buffer_size = PARAM.batch_size * 1000
+
+  pad_vocab_id = tf.cast(source_vocab_table.lookup(tf.constant(PARAM.pad)), tf.int32)
 
   if PARAM.use_char_encode:
     src_eos_id = vocab_utils.EOS_CHAR_ID
@@ -129,6 +134,7 @@ def get_batch_inputs_form_dataset(log_file,
   # Create a tgt_input prefixed with <sos> and a tgt_output suffixed with <eos>.
   tgt_sos_id = tf.cast(target_vocab_table.lookup(tf.constant(PARAM.sos)), tf.int32)
   tgt_eos_id = tf.cast(target_vocab_table.lookup(tf.constant(PARAM.eos)), tf.int32)
+
   src_tgt_dataset = src_tgt_dataset.map(
       lambda src, tgt: (src,
                         tf.concat(([tgt_sos_id], tgt), 0),
@@ -153,10 +159,10 @@ def get_batch_inputs_form_dataset(log_file,
   if PARAM.num_buckets > 1 and bucket:
     # Bucket sentence pairs by the length of their source sentence and target sentence.
     src_tgt_dataset = _bucket_dataset_by_length(src_tgt_dataset, PARAM.batch_size,
-                                                src_eos_id, tgt_eos_id)
+                                                src_eos_id, tgt_eos_id, pad_vocab_id)
   else:
     src_tgt_dataset = _batching_func_with_labels(src_tgt_dataset, PARAM.batch_size,
-                                                 src_eos_id, tgt_eos_id)
+                                                 src_eos_id, tgt_eos_id, pad_vocab_id)
 
   batched_iter = src_tgt_dataset.make_initializable_iterator()
   src_ids, tgt_input_ids, tgt_output_ids, src_seq_len, tgt_seq_len = batched_iter.get_next()

@@ -8,10 +8,11 @@ import tensorflow as tf
 from ..FLAGS import PARAM
 from ..utils import misc_utils
 
+PAD = PARAM.pad
 UNK = PARAM.unk
 SOS = PARAM.sos
 EOS = PARAM.eos
-UNK_ID = 0
+UNK_ID = 1
 
 # char ids 0-255 come from utf-8 encoding bytes
 # assign 256-300 to special chars
@@ -42,17 +43,30 @@ def _check_vocab(log_file, vocab_file, check_special_token=True):
     if check_special_token:
       # Verify if the vocab starts with unk, sos, eos
       # If not, prepend those tokens & generate a new vocab file
+      pad = PAD
       unk = UNK
       sos = SOS
       eos = EOS
-      assert len(vocab) >= 3
-      if vocab[0] != unk or vocab[1] != sos or vocab[2] != eos:
-        misc_utils.printinfo("The first 3 vocab words [%s, %s, %s]"
-                             " are not [%s, %s, %s]" %
-                             (vocab[0], vocab[1], vocab[2], unk, sos, eos),
+      assert len(vocab) >= 4
+      if vocab[0] != pad or vocab[1] != unk or vocab[2] != sos or vocab[3] != eos:
+        misc_utils.printinfo("The first 4 vocab words [%s, %s, %s, %s]"
+                             " are not [%s, %s, %s, %s]" %
+                             (vocab[0], vocab[1], vocab[2], vocab[3], pad, unk, sos, eos),
                              log_file)
-        vocab = [unk, sos, eos] + vocab
-        vocab_size += 3
+        if pad in vocab:
+          vocab.pop(vocab.index(pad))
+          vocab_size -=1
+        if unk in vocab:
+          vocab.pop(vocab.index(unk))
+          vocab_size -=1
+        if sos in vocab:
+          vocab.pop(vocab.index(sos))
+          vocab_size -=1
+        if eos in vocab:
+          vocab.pop(vocab.index(eos))
+          vocab_size -=1
+        vocab = [pad, unk, sos, eos] + vocab
+        vocab_size += 4
         os.rename(vocab_file, vocab_file+'.bak')
         with codecs.getwriter("utf-8")(
                 tf.gfile.GFile(vocab_file, "wb")) as f:
