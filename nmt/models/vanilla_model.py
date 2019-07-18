@@ -262,9 +262,7 @@ class BaseModel(object):
     logits: [batch, time, ...]
     label:[batch, time]
     """
-    labels = tf.transpose(labels)
     if PARAM.num_sampled_softmax > 0:
-
       is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
 
       inputs = rnn_outputs_for_sampled_sotmax
