@@ -181,12 +181,13 @@ class BaseModel(object):
                                 max_to_keep=PARAM.num_keep_ckpts,
                                 save_relative_paths=True)
 
+    # sample_words for decoding
+    self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
+          self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
+    self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
+
     # infer end
     if self.mode == PARAM.MODEL_INFER_KEY:
-      # sample_words for decoding
-      self.reverse_target_vocab_table = lookup_ops.index_to_string_table_from_file(
-          self.tgt_vocab_file, default_value=vocab_utils.UNK) # ids -> words
-      self.sample_words = self.reverse_target_vocab_table.lookup(tf.to_int64(self.sample_id))
       return
 
     # loss TODO
