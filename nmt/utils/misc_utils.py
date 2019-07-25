@@ -181,7 +181,7 @@ def get_translation_text_from_samplewords(sample_words, sentence_id, eos, subwor
   # If there is an eos symbol in outputs, cut them at that position.
   if eos and eos in sentence:
     sentence = sentence[:sentence.index(eos)]
-    sentence = sentence[sentence.index(eos)] = "233" # TODO rm
+    # sentence[sentence.index(eos)] = "233".encode("utf-8")
 
   if (not hasattr(sentence, "__len__") and  # for numpy array
           not isinstance(sentence, collections.Iterable)):
