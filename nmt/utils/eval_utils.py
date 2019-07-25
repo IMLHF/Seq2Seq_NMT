@@ -122,6 +122,7 @@ def _bleu(ref_file, trans_file, subword_option=None):
   #     per_segment_references, translations, max_order, smooth)
 
   # nltk_blue open toolkit, more persuasiveness.
+  os.environ["PYTHONWARNINGS"] = "ignore" # Also affect subprocesses
   nltk_bleu_score = corpus_bleu(per_segment_references, translations)
   # print(bleu_score, nltk_bleu_score)
   return 100 * nltk_bleu_score
