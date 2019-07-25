@@ -108,63 +108,6 @@ def query_time_mask_for_train(inputs, query_lengths):
   outputs = tf.multiply(inputs, mask)
   return outputs
 
-def abandoned_mask(inputs, queries=None, keys=None, type=None):
-  """Masks paddings on keys or queries to inputs
-  inputs: 3d tensor. (N, T_q, T_k)
-  queries: 3d tensor. (N, T_q, d)
-  keys: 3d tensor. (N, T_k, d)
-
-  e.g.,
-  >> queries = tf.constant([[[1.],
-                      [2.],
-                      [0.]]], tf.float32) # (1, 3, 1)
-  >> keys = tf.constant([[[4.],
-                    [0.]]], tf.float32)  # (1, 2, 1)
-  >> inputs = tf.constant([[[4., 0.],
-                              [8., 0.],
-                              [0., 0.]]], tf.float32)
-  >> mask(inputs, queries, keys, "key")
-  array([[[ 4.0000000e+00, -4.2949673e+09],
-      [ 8.0000000e+00, -4.2949673e+09],
-      [ 0.0000000e+00, -4.2949673e+09]]], dtype=float32)
-  >> inputs = tf.constant([[[1., 0.],
-                            [1., 0.],
-                            [1., 0.]]], tf.float32)
-  >> mask(inputs, queries, keys, "query")
-  array([[[1., 0.],
-      [1., 0.],
-      [0., 0.]]], dtype=float32)
-  """
-  padding_num = -2 ** 32 + 1
-  if type in ("k", "key", "keys"):
-    # Generate masks
-    masks = tf.sign(tf.reduce_sum(tf.abs(keys), axis=-1))  # (N, T_k)
-    masks = tf.expand_dims(masks, 1) # (N, 1, T_k)
-    masks = tf.tile(masks, [1, tf.shape(queries)[1], 1])  # (N, T_q, T_k)
-
-    # Apply masks to inputs
-    paddings = tf.ones_like(inputs) * padding_num
-    outputs = tf.where(tf.equal(masks, 0), paddings, inputs)  # (N, T_q, T_k)
-  elif type in ("q", "query", "queries"):
-    # Generate masks
-    masks = tf.sign(tf.reduce_sum(tf.abs(queries), axis=-1))  # (N, T_q)
-    masks = tf.expand_dims(masks, -1)  # (N, T_q, 1)
-    masks = tf.tile(masks, [1, 1, tf.shape(keys)[1]])  # (N, T_q, T_k)
-
-    # Apply masks to inputs
-    outputs = inputs*masks
-  elif type in ("f", "future", "right"):
-    diag_vals = tf.ones_like(inputs[0, :, :])  # (T_q, T_k)
-    tril = tf.linalg.LinearOperatorLowerTriangular(diag_vals).to_dense()  # (T_q, T_k)
-    masks = tf.tile(tf.expand_dims(tril, 0), [tf.shape(inputs)[0], 1, 1])  # (N, T_q, T_k)
-
-    paddings = tf.ones_like(masks) * padding_num
-    outputs = tf.where(tf.equal(masks, 0), paddings, inputs)
-  else:
-    print("Check if you entered type correctly!")
-
-  return outputs
-
 
 def scaled_dot_product_attention(Q, K, V, KV_lengths, Q_lengths=None,
                                  causality=False, dropout_rate=0.,
@@ -191,13 +134,11 @@ def scaled_dot_product_attention(Q, K, V, KV_lengths, Q_lengths=None,
     outputs /= d_k ** 0.5
 
     # attention_score_mask
-    # outputs = mask(outputs, Q, K, type="key")
     outputs = attention_score_mask(outputs, KV_lengths)
 
 
     # causality or future blinding masking
     if causality:
-      # outputs = mask(outputs, type="future")
       outputs = causality_mask_for_self_attention(outputs)
 
     # softmax
@@ -206,9 +147,9 @@ def scaled_dot_product_attention(Q, K, V, KV_lengths, Q_lengths=None,
     tf.summary.image("attention", tf.expand_dims(attention[:1], -1))
 
     # query masking
-    # outputs = mask(outputs, Q, K, type="query")
     # TODO remove query_time_mask_for_train and add tf.sequence_mask at calculate loss ?
-    outputs = query_time_mask_for_train(outputs, Q_lengths)
+    if not PARAM.rm_query_mask:
+      outputs = query_time_mask_for_train(outputs, Q_lengths)
 
     # dropout
     outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=training)
@@ -440,13 +381,13 @@ class Transformer(vanilla_model.BaseModel):
 
       if PARAM.before_logits_is_tgt_embedding:
         if dec_d_model != tgt_embed_size:
-          dec = tf.layers.dense(dec, tgt_embed_size)
+          dec = tf.layers.dense(dec, tgt_embed_size, use_bias=False)
         weights = tf.transpose(self.embedding_decoder) # [tgt_embed_size, vocab_size]
         logits = tf.einsum('ntd,dk->ntk', dec, weights) # [batch, time, vocab_size]
       else:
-        logits = tf.layers.dense(dec, self.tgt_vocab_size)
+        logits = tf.layers.dense(dec, self.tgt_vocab_size, use_bias=False)
 
-    sample_id = tf.to_int32(tf.argmax(logits, axis=-1))
+    sample_id = tf.argmax(logits, axis=-1, name='get_sample_id', output_type=tf.int32)
     # logits = tf.check_numerics(logits,"NaN_INF233333333333333%d"%1,name="tmp")
     return logits, sample_id, None, dec
 
@@ -477,32 +418,32 @@ class Transformer(vanilla_model.BaseModel):
           tf.to_float(max_src_len) * PARAM.tgt_max_len_infer_factor))
 
       input_id_seq = start_tokens
+      self.debug = input_id_seq
 
-      # for i in range(PARAM.tgt_max_len):
-      #   print(i)
-      #   logits, sample_id, _, dec = self._decoder_once(input_id_seq,
-      #                                                  encoder_outputs)
-      #   input_id_seq = tf.concat((start_tokens, sample_id), 1)
+      if not PARAM.use_tf_while_loop_decode:
+        for i in range(int(PARAM.tgt_max_len*PARAM.tgt_max_len_infer_factor)):
+          logits, sample_id, _, dec = self._decoder_once(input_id_seq,
+                                                         encoder_outputs)
+          input_id_seq = tf.concat((start_tokens, sample_id), 1)
+      else:
+        def body(i, max_i, _, __, ___, input_id_seq_t):
+          # input_id_seq [batch, time]
+          logits, sample_id, _, dec = self._decoder_once(input_id_seq_t,
+                                                         encoder_outputs)
+          concat_sos_sample_id = tf.concat((start_tokens, sample_id), 1)
+          return i+1, max_i, logits, sample_id, dec, concat_sos_sample_id
+        _, _, logits, sample_id, dec, _ = tf.while_loop(lambda i, max_iter, _, __, ___, ____: i < max_iter,
+                                                        body, (0, max_iter,
+                                                               tf.zeros([1, 1, 1], dtype=self.dtype),
+                                                               tf.zeros([1, 1], dtype=tf.int32),
+                                                               tf.zeros([1, 1, 1], dtype=self.dtype),
+                                                               input_id_seq),
+                                                        shape_invariants=(tf.TensorShape(None), tf.TensorShape(None),
+                                                                          tf.TensorShape([None, None, None]),
+                                                                          tf.TensorShape([None, None]),
+                                                                          tf.TensorShape([None, None, None]),
+                                                                          tf.TensorShape([None, None])))
 
-
-      def body(i, max_i, _, __, ___, input_id_seq_t):
-        # input_id_seq [batch, time]
-        logits, sample_id, _, dec = self._decoder_once(input_id_seq_t,
-                                                       encoder_outputs)
-        concat_sos_sample_id = tf.concat((start_tokens, sample_id), 1)
-        return i+1, max_i, logits, sample_id, dec, concat_sos_sample_id
-      _, _, logits, sample_id, dec, _ = tf.while_loop(lambda i, max_iter, _, __, ___, ____: i < max_iter,
-                                                      body, (0, max_iter,
-                                                             tf.zeros([1, 1, 1], dtype=self.dtype),
-                                                             tf.zeros([1, 1], dtype=tf.int32),
-                                                             tf.zeros([1, 1, 1], dtype=self.dtype),
-                                                             input_id_seq),
-                                                      shape_invariants=(tf.TensorShape(None), tf.TensorShape(None),
-                                                                        tf.TensorShape([None, None, None]),
-                                                                        tf.TensorShape([None, None]),
-                                                                        tf.TensorShape([None, None, None]),
-                                                                        tf.TensorShape([None, None])))
-      # logits
       return logits, sample_id, None, dec
 
 
