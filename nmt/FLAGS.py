@@ -82,9 +82,9 @@ class BaseConfig(StaticKey):
   # endregion
 
   # regiion optimizer & lr halving & stop criterion
-  start_halving_impr = 0.01
-  lr_halving_rate = 0.7
-  max_lr_halving_time = 8
+  start_halving_impr = 0.05
+  lr_halving_rate = 0.5
+  max_lr_halving_time = 10
 
   optimizer = 'sgd' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
@@ -180,13 +180,12 @@ class BaseConfig(StaticKey):
   # n_blocks_enc = encoder_num_layers
   # n_blocks_dec = decoder_num_layers
   # d_model = encoder_num_units = decoder_num_units = src_embed_size = tgt_embed_size
-  enc_d_positionwise_FC = 512
-  dec_d_positionwise_FC = 512
+  enc_d_positionwise_FC = 1024
+  dec_d_positionwise_FC = 1024
   enc_num_att_heads = 8
   dec_num_att_heads = 8
   before_logits_is_tgt_embedding = True
-  use_tf_while_loop_decode = False
-  rm_query_mask = False
+  use_tf_while_loop_decode = True
 
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
@@ -289,6 +288,8 @@ class TransformerTest_FOR(BaseConfig):
   learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
 
+  use_tf_while_loop_decode = False
+
 class TransformerTest_LOOP(BaseConfig):
   batch_size = 128
   encoder_num_layers = 3
@@ -298,23 +299,27 @@ class TransformerTest_LOOP(BaseConfig):
   learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
 
-  use_tf_while_loop_decode = True # *
 
-
-class TransformerTest_rmquerymask(BaseConfig): # 15047
-  VISIBLE_GPU = "2"
+class TransformerTest(BaseConfig):
   batch_size = 128
-  encoder_num_layers = 3
-  decoder_num_layers = 3
+  encoder_num_layers = 4
+  decoder_num_layers = 4
   model_type = 'transformer'
   optimizer = 'adam'
-  learning_rate = 0.0003
+  learning_rate = 0.001
   before_logits_is_tgt_embedding = False
 
-  rm_query_mask = True
+class TransformerTest_outembed(BaseConfig): # pendding
+  batch_size = 128
+  encoder_num_layers = 4
+  decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.001
+  before_logits_is_tgt_embedding = True
 
 
-PARAM = TransformerTest_rmquerymask
+PARAM = TransformerTest_outembed
 
 if __name__ == '__main__':
   pass

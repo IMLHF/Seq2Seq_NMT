@@ -147,9 +147,9 @@ def scaled_dot_product_attention(Q, K, V, KV_lengths, Q_lengths=None,
     tf.summary.image("attention", tf.expand_dims(attention[:1], -1))
 
     # query masking
-    # TODO remove query_time_mask_for_train and add tf.sequence_mask at calculate loss ?
-    if not PARAM.rm_query_mask:
-      outputs = query_time_mask_for_train(outputs, Q_lengths)
+    # remove query_time_mask_for_train and add tf.sequence_mask at calculate loss ?
+    # if not PARAM.rm_query_mask:
+    #   outputs = query_time_mask_for_train(outputs, Q_lengths)
 
     # dropout
     outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=training)
