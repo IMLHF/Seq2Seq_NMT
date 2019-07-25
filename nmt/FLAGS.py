@@ -9,6 +9,7 @@ class StaticKey(object):
     return self.__class__.__name__
 
 class BaseConfig(StaticKey):
+  VISIBLE_GPU = "0"
   # root_dir = '/mnt/d/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   # root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   root_dir = '/home/room/worklhf/nmt_seq2seq_first/'
@@ -81,9 +82,9 @@ class BaseConfig(StaticKey):
   # endregion
 
   # regiion optimizer & lr halving & stop criterion
-  start_halving_impr = 0.001
-  lr_halving_rate = 0.5
-  max_lr_halving_time = 4
+  start_halving_impr = 0.01
+  lr_halving_rate = 0.7
+  max_lr_halving_time = 8
 
   optimizer = 'sgd' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
@@ -108,6 +109,7 @@ class BaseConfig(StaticKey):
   # The embedding files should be Glove formated txt files.
   # '''
 
+  pad = '<pad>'
   unk = '<unk>'
   sos = '<s>' # Start-of-sentence symbol.
   eos = '</s>' # End- of-sentence symbol.
@@ -178,11 +180,13 @@ class BaseConfig(StaticKey):
   # n_blocks_enc = encoder_num_layers
   # n_blocks_dec = decoder_num_layers
   # d_model = encoder_num_units = decoder_num_units = src_embed_size = tgt_embed_size
-  enc_d_positionwise_FC = 2048
-  dec_d_positionwise_FC = 2048
+  enc_d_positionwise_FC = 512
+  dec_d_positionwise_FC = 512
   enc_num_att_heads = 8
   dec_num_att_heads = 8
   before_logits_is_tgt_embedding = True
+  use_tf_while_loop_decode = False
+  rm_query_mask = False
 
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
@@ -220,7 +224,7 @@ class C003_2_adam_beam_search10(BaseConfig): # DONE 15123
   infer_mode = 'beam_search'
   beam_width = 10
 
-class C004_attention_scaled_luong(BaseConfig): # DONE 15123
+class C004_attention_scaled_luong(BaseConfig): # DONE 15123 ***
   model_type = 'standard_attention'
   attention = 'scaled_luong'
   optimizer = 'adam'
@@ -276,18 +280,41 @@ class C004_attention_scaled_luong_maskedlogits(BaseConfig):
   optimizer = 'adam'
   learning_rate = 0.001
 
-class TransformerTest(BaseConfig):
-  batch_size = 256
+class TransformerTest_FOR(BaseConfig):
+  batch_size = 128
   encoder_num_layers = 3
   decoder_num_layers = 3
   model_type = 'transformer'
   optimizer = 'adam'
-  learning_rate = 0.001
+  learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
 
+class TransformerTest_LOOP(BaseConfig):
+  batch_size = 128
+  encoder_num_layers = 3
+  decoder_num_layers = 3
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+  before_logits_is_tgt_embedding = False
+
+  use_tf_while_loop_decode = True # *
 
 
-PARAM = TransformerTest
+class TransformerTest_rmquerymask(BaseConfig): # 15047
+  VISIBLE_GPU = "2"
+  batch_size = 128
+  encoder_num_layers = 3
+  decoder_num_layers = 3
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+  before_logits_is_tgt_embedding = False
+
+  rm_query_mask = True
+
+
+PARAM = TransformerTest_rmquerymask
 
 if __name__ == '__main__':
   pass
