@@ -23,7 +23,7 @@ def masked_cross_entropy_loss(logits, target_output, target_sequence_length, bat
   mat_loss = tf.multiply(crossent, target_weights) # [batch, time]
   loss = tf.reduce_sum(mat_loss, axis=-1) # [batch]
   seq_lengths = tf.cast(target_sequence_length,dtype=loss.dtype)
-  # loss = tf.reduce_mean(loss / seq_lengths) # reduce_mean batch&time
+  # loss = tf.reduce_mean(loss / seq_lengths) # reduce_mean batch&time # if use: fix loss print method in train script.
   loss = tf.reduce_sum(loss / seq_lengths) # reduce_sum batch && reduce_mean time
 
   return mat_loss, loss

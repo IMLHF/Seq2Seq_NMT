@@ -328,6 +328,7 @@ class TransformerTest_lr03warmup(BaseConfig):
   model_type = 'transformer'
   optimizer = 'adam'
   learning_rate = 0.0003
+  use_lr_warmup = True
 
 class TransformerTest_lr10warmup(BaseConfig):
   VISIBLE_GPU = "3"
@@ -337,6 +338,7 @@ class TransformerTest_lr10warmup(BaseConfig):
   model_type = 'transformer'
   optimizer = 'adam'
   learning_rate = 0.001
+  use_lr_warmup = True
 
 
 PARAM = TransformerTest_lr10warmup
