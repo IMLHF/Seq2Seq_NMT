@@ -445,5 +445,3 @@ class Transformer(vanilla_model.BaseModel):
                                                                           tf.TensorShape([None, None])))
 
       return logits, sample_id, None, dec
-
-

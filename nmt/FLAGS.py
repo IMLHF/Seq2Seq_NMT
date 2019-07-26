@@ -186,7 +186,6 @@ class BaseConfig(StaticKey):
   dec_num_att_heads = 8
   before_logits_is_tgt_embedding = True
   use_tf_while_loop_decode = True
-  rm_query_mask = True
 
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
@@ -288,7 +287,6 @@ class TransformerTest_FOR(BaseConfig):
   optimizer = 'adam'
   learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
-  rm_query_mask = False
 
   use_tf_while_loop_decode = False
 
@@ -300,7 +298,6 @@ class TransformerTest_LOOP(BaseConfig):
   optimizer = 'adam'
   learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
-  rm_query_mask = False
 
 
 class TransformerTest(BaseConfig):
