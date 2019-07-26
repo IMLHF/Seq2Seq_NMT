@@ -2,13 +2,18 @@ import tensorflow as tf
 from ..FLAGS import PARAM
 
 
-def masked_cross_entropy_loss(logits, crossent, decoder_cell_outputs, target_output, target_sequence_length, batch_size):
+def masked_cross_entropy_loss(logits, target_output, target_sequence_length, batch_size):
   """Compute optimization loss."""
   time_axis = 1
   max_time = target_output.shape[time_axis].value or tf.shape(target_output)[time_axis]
 
-  # crossent = self._softmax_cross_entropy_loss(
-  #     logits, decoder_cell_outputs, target_output)
+  # print(target_output.get_shape().as_list(),logits.get_shape().as_list())
+  # labels/target_output :[batch, time]
+  # logits :[batch, time, vocab_num]
+  crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+      labels=target_output, logits=logits)
+  # print(crossent.get_shape().as_list())
+  # crossent :[batch, time]
 
   target_weights = tf.sequence_mask(
       target_sequence_length, max_time, dtype=tf.float32)

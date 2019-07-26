@@ -261,42 +261,6 @@ class BaseModel(object):
     )
 
 
-  def _softmax_cross_entropy_loss(
-    self, logits, rnn_outputs_for_sampled_sotmax, labels):
-    """Compute softmax loss or sampled softmax loss.
-    logits: [batch, time, ...]
-    label:[batch, time]
-    """
-    if PARAM.num_sampled_softmax > 0:
-      is_sequence = (rnn_outputs_for_sampled_sotmax.shape.ndims == 3)
-
-      inputs = rnn_outputs_for_sampled_sotmax
-      if is_sequence:
-        labels = tf.reshape(labels, [-1, 1]) #  [batch*time, 1]
-        inputs = tf.reshape(rnn_outputs_for_sampled_sotmax,
-                            [-1, PARAM.decoder_num_units])  # [batch*time, depth]
-
-      crossent = tf.nn.sampled_softmax_loss(
-          weights=tf.transpose(self.output_layer.kernel),
-          biases=self.output_layer.bias or tf.zeros([self.tgt_vocab_size]),
-          labels=labels,
-          inputs=inputs,
-          num_sampled=PARAM.num_sampled_softmax,
-          num_classes=self.tgt_vocab_size,
-          partition_strategy="div")
-
-      if is_sequence:
-        crossent = tf.reshape(crossent, [self.batch_size, -1])
-
-    else:
-      # print(labels.get_shape().as_list(),logits.get_shape().as_list())
-      # logits :[batch, time, vocab_num]
-      crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-          labels=labels, logits=logits)
-      # print(crossent.get_shape().as_list())
-      # crossent :[batch, time]
-    return crossent
-
   @abc.abstractmethod
   def _build_encoder(self, seq, seq_lengths):
     """

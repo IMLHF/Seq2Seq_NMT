@@ -135,7 +135,6 @@ class BaseConfig(StaticKey):
   batches_to_logging = 300
   max_train = 0 # Limit on the size of training data (0: no limit).
   num_buckets = 5 # if > 1; Bucket sentence pairs by the length of their source sentence and target sentence.
-  num_sampled_softmax = 0 # Use sampled_softmax_loss if > 0, else full softmax loss. default=
   subword_option = None # method format sample_words to text, not use
 
   # Misc
@@ -340,7 +339,7 @@ class TransformerTest_lr10warmup(BaseConfig):
   learning_rate = 0.001
 
 
-PARAM = TransformerTest_lr03warmup
+PARAM = TransformerTest_lr10warmup
 
 if __name__ == '__main__':
   pass
