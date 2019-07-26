@@ -201,8 +201,8 @@ def train_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
       # misc_utils.printinfo(msg, log_file)
       i += 1
       if i % PARAM.batches_to_logging == 0:
-        msg = "    Minbatch %04d: loss:%.4f, duration:%ds." % (
-                i, tr_loss/data_len, time.time()-minbatch_time,
+        msg = "    Minbatch %04d: loss:%.4f, lr:%.2e, duration:%ds." % (
+                i, tr_loss/data_len, lr, time.time()-minbatch_time,
               )
         minbatch_time = time.time()
         misc_utils.printinfo(msg, log_file)
