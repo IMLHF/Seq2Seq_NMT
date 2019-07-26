@@ -88,7 +88,7 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
   # endregion val_model
 
   # region infer_mode to calculate bleu, rouge, accuracy
-  trans_file = os.path.join(exp_dir, '%s_set_translate_result_iter%04d.txt' % (dataset_name, epoch))
+  trans_file = os.path.join(exp_dir, '%s_set_translation_iter%04d.txt' % (dataset_name, epoch))
   trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
   trans_f.write("")  # Write empty string to ensure file is created.
 
@@ -133,6 +133,12 @@ def val_or_test(exp_dir, log_file, src_textline_file, tgt_textline_file,
       metric=metric,
       subword_option=PARAM.subword_option
     )
+  if 'bleu' in eval_scores:
+    os.rename(
+        os.path.join(
+            exp_dir, '%s_set_translation_iter%04d.txt' % (dataset_name, epoch)),
+        os.path.join(
+            exp_dir, '%s_set_translation_iter%04d_BLEU%.1f.txt' % (dataset_name, epoch, eval_scores['bleu'])))
   # endregion infer_model
 
   # summary
@@ -159,7 +165,7 @@ def train_one_epoch(exp_dir, log_file, src_textline_file, tgt_textline_file,
                          feed_dict={train_sgmd.dataset.src_textline_file_ph: src_textline_file,
                                     train_sgmd.dataset.tgt_textline_file_ph:tgt_textline_file})
 
-  trans_file = os.path.join(exp_dir, '%s_set_translate_result_iter%04d.txt' % ("train", epoch))
+  trans_file = os.path.join(exp_dir, '%s_set_translation_iter%04d.txt' % ("train", epoch))
   trans_f = codecs.getwriter("utf-8")(tf.gfile.GFile(trans_file, mode="wb"))
   trans_f.write("")  # Write empty string to ensure file is created
 
