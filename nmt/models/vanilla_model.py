@@ -190,14 +190,9 @@ class BaseModel(object):
     if self.mode == PARAM.MODEL_INFER_KEY:
       return
 
-    # loss TODO
-    crossent = self._softmax_cross_entropy_loss(
-        self.logits, rnn_outputs_for_sampled_sotmax, self.target_out_id_seq)
     # mat_loss: [batch, time]
     # loss: shape=()
     self.mat_loss, self.loss = loss_utils.masked_cross_entropy_loss(self.logits,
-                                                                    crossent,
-                                                                    rnn_outputs_for_sampled_sotmax,
                                                                     self.target_out_id_seq,
                                                                     self.target_seq_lengths,
                                                                     self.batch_size)

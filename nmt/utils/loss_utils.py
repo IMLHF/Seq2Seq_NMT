@@ -3,6 +3,7 @@ from ..FLAGS import PARAM
 
 
 def masked_cross_entropy_loss(logits, target_output, target_sequence_length, batch_size):
+  del batch_size
   """Compute optimization loss."""
   time_axis = 1
   max_time = target_output.shape[time_axis].value or tf.shape(target_output)[time_axis]
