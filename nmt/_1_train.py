@@ -288,7 +288,7 @@ def main(exp_dir,
   # train epochs
   assert PARAM.start_epoch > 0, 'start_epoch > 0 is required.'
   best_ckpt_name = 'tmp'
-  lr_halving_time = 0
+  model_abandon_time = 0
   for epoch in range(PARAM.start_epoch, PARAM.max_epoch+1):
     misc_utils.printinfo("%s, Epoch %03d:" % (time.ctime(), epoch), log_file)
     # train
@@ -366,6 +366,7 @@ def main(exp_dir,
       best_ckpt_name = ckpt_name
       msg = "    ckpt(%s) saved.\n" % ckpt_name
     else:
+      model_abandon_time += 1
       tf.logging.set_verbosity(tf.logging.WARN)
       train_sgmd.model.saver.restore(train_sgmd.session,
                                      os.path.join(ckpt_dir, best_ckpt_name))
@@ -375,13 +376,12 @@ def main(exp_dir,
     misc_utils.printinfo(msg, log_file)
 
     # start lr halving
-    if val_loss_rel_impr < PARAM.start_halving_impr:
+    if val_loss_rel_impr < PARAM.start_halving_impr and (not PARAM.use_lr_warmup):
       new_lr = trainOneEpochOutput.learning_rate * PARAM.lr_halving_rate
-      lr_halving_time += 1
       train_sgmd.model.change_lr(train_sgmd.session, new_lr)
 
     # stop criterion
-    if epoch >= PARAM.max_epoch or lr_halving_time > PARAM.max_lr_halving_time:
+    if epoch >= PARAM.max_epoch or model_abandon_time >= PARAM.max_model_abandon_time:
       msg = "finished, too small learning rate %e." % trainOneEpochOutput.learning_rate
       tf.logging.info(msg)
       misc_utils.printinfo(msg, log_file, noPrt=True)

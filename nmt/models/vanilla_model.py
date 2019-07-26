@@ -228,10 +228,14 @@ class BaseModel(object):
     # Arrange for the embedding vars to appear at the beginning.
 
     # Optimizer
+    lr = self.learning_rate
+    if PARAM.use_lr_warmup:
+      lr = misc_utils.noam_scheme(self.learning_rate, self.global_step,
+                                  warmup_steps=PARAM.warmup_step)
     if PARAM.optimizer == "sgd":
-      opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+      opt = tf.train.GradientDescentOptimizer(lr)
     elif PARAM.optimizer == "adam":
-      opt = tf.train.AdamOptimizer(self.learning_rate)
+      opt = tf.train.AdamOptimizer(lr)
     else:
       raise ValueError("Unknown optimizer type %s" % PARAM.optimizer)
     # Gradients

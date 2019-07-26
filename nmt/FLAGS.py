@@ -81,10 +81,12 @@ class BaseConfig(StaticKey):
   # num_embeddings_partitions = 0 # ?
   # endregion
 
-  # regiion optimizer & lr halving & stop criterion
-  start_halving_impr = 0.01
-  lr_halving_rate = 0.7
-  max_lr_halving_time = 8
+  # regiion optimizer & lr halving or lr warmup & stop criterion
+  max_model_abandon_time = 3
+  use_lr_warmup = True # true: lr warmup; false: lr halving
+  warmup_step = 4000. # for (use_lr_warmup == true)
+  start_halving_impr = 0.01 # no use for (use_lr_warmup == true)
+  lr_halving_rate = 0.7 # no use for (use_lr_warmup == true)
 
   optimizer = 'sgd' # 'sgd' or 'adam'
   loss = 'cross_entropy' #
