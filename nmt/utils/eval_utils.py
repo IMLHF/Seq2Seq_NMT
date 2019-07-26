@@ -115,17 +115,17 @@ def _bleu(ref_file, trans_file, subword_option=None):
       line = _clean(line, subword_option=None)
       translations.append(line.split(" "))
 
-  # max_order = 4 # n_gram
-  # smooth = False
-  # # bleu_score, precisions, bp, ratio, translation_length, reference_length
-  # bleu_score, _, _, _, _, _ = bleu.compute_bleu( # faster than nltk
-  #     per_segment_references, translations, max_order, smooth)
+  max_order = 4 # n_gram
+  smooth = False
+  # bleu_score, precisions, bp, ratio, translation_length, reference_length
+  bleu_score, _, _, _, _, _ = bleu.compute_bleu( # faster than nltk
+      per_segment_references, translations, max_order, smooth)
 
   # nltk_blue open toolkit, more persuasiveness.
-  os.environ["PYTHONWARNINGS"] = "ignore" # Also affect subprocesses
-  nltk_bleu_score = corpus_bleu(per_segment_references, translations)
+  # os.environ["PYTHONWARNINGS"] = "ignore" # Also affect subprocesses
+  # nltk_bleu_score = corpus_bleu(per_segment_references, translations)
   # print(bleu_score, nltk_bleu_score)
-  return 100 * nltk_bleu_score
+  return 100 * bleu_score
 
 
 def _rouge(ref_file, summarization_file, subword_option=None):
