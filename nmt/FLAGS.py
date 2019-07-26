@@ -83,7 +83,7 @@ class BaseConfig(StaticKey):
 
   # regiion optimizer & lr halving or lr warmup & stop criterion
   max_model_abandon_time = 3
-  use_lr_warmup = True # true: lr warmup; false: lr halving
+  use_lr_warmup = False # true: lr warmup; false: lr halving
   warmup_step = 4000. # for (use_lr_warmup == true)
   start_halving_impr = 0.01 # no use for (use_lr_warmup == true)
   lr_halving_rate = 0.7 # no use for (use_lr_warmup == true)
@@ -320,10 +320,27 @@ class TransformerTest_outembed(BaseConfig):
   model_type = 'transformer'
   optimizer = 'adam'
   learning_rate = 0.0003
-  before_logits_is_tgt_embedding = True
+
+class TransformerTest_lr03warmup(BaseConfig):
+  VISIBLE_GPU = "2"
+  batch_size = 128
+  encoder_num_layers = 4
+  decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+
+class TransformerTest_lr10warmup(BaseConfig):
+  VISIBLE_GPU = "3"
+  batch_size = 128
+  encoder_num_layers = 4
+  decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.001
 
 
-PARAM = TransformerTest
+PARAM = TransformerTest_lr03warmup
 
 if __name__ == '__main__':
   pass

@@ -1,3 +1,5 @@
+# for example: `./run.sh PARAM_class_name`.
+# `python3 -m PARAM_class_name.nmt_main` will be run.
 echo $1
 if [ -d "exp/$1" ]; then
 date=`date`

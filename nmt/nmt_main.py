@@ -25,6 +25,9 @@ def main(_):
 
 
 if __name__ == '__main__':
+  config_name = str(sys.argv[0]).split("/")[-2]
+  assert config_name == misc_utils.config_name(), (
+      'PARAM_class_name != dir_name. PARAM_name:%s, dir_name:%s.' % (config_name, misc_utils.config_name()))
   os.environ['CUDA_VISIBLE_DEVICES'] = PARAM.VISIBLE_GPU
   tf.logging.set_verbosity(tf.logging.INFO)
   tf.app.run(main=main, argv=sys.argv)
