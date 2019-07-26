@@ -48,11 +48,19 @@ class BaseModel(object):
     """
     self.global_step = tf.get_variable('global_step',dtype=tf.int32,
                                        initializer=tf.constant(0),trainable=False)
-    self.learning_rate = tf.get_variable('learning_rate', dtype=tf.float32, trainable=False,
-                                         initializer=tf.constant(PARAM.learning_rate))
+    self.init_learning_rate = tf.get_variable('init_learning_rate', dtype=tf.float32, trainable=False,
+                                              initializer=tf.constant(PARAM.learning_rate))
+    self.save_variables = [self.global_step, self.init_learning_rate]
+
+    # for lr halving
     self.new_lr = tf.placeholder(tf.float32,name="new_lr")
-    self.assign_lr = tf.assign(self.learning_rate, self.new_lr)
-    self.save_variables = [self.global_step, self.learning_rate]
+    self.assign_lr = tf.assign(self.init_learning_rate, self.new_lr)
+    self.learning_rate = self.init_learning_rate
+
+    # for lr warmup
+    if PARAM.use_lr_warmup:
+      self.learning_rate = misc_utils.noam_scheme(self.init_learning_rate, self.global_step,
+                                                  warmup_steps=PARAM.warmup_step)
     self.log_file = log_file
     self.source_id_seq = source_id_seq # [batch, time(ids_num)]
     self.target_in_id_seq = target_in_id_seq # [batch, time]
@@ -223,14 +231,10 @@ class BaseModel(object):
     # Arrange for the embedding vars to appear at the beginning.
 
     # Optimizer
-    lr = self.learning_rate
-    if PARAM.use_lr_warmup:
-      lr = misc_utils.noam_scheme(self.learning_rate, self.global_step,
-                                  warmup_steps=PARAM.warmup_step)
     if PARAM.optimizer == "sgd":
-      opt = tf.train.GradientDescentOptimizer(lr)
+      opt = tf.train.GradientDescentOptimizer(self.learning_rate)
     elif PARAM.optimizer == "adam":
-      opt = tf.train.AdamOptimizer(lr)
+      opt = tf.train.AdamOptimizer(self.learning_rate)
     else:
       raise ValueError("Unknown optimizer type %s" % PARAM.optimizer)
     # Gradients
