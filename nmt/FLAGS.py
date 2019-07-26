@@ -180,8 +180,8 @@ class BaseConfig(StaticKey):
   # n_blocks_enc = encoder_num_layers
   # n_blocks_dec = decoder_num_layers
   # d_model = encoder_num_units = decoder_num_units = src_embed_size = tgt_embed_size
-  enc_d_positionwise_FC = 512
-  dec_d_positionwise_FC = 512
+  enc_d_positionwise_FC = 1024
+  dec_d_positionwise_FC = 1024
   enc_num_att_heads = 8
   dec_num_att_heads = 8
   before_logits_is_tgt_embedding = True
