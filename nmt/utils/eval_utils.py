@@ -16,7 +16,7 @@
 """Utility for evaluating various tasks, e.g., translation & summarization."""
 import codecs
 import math
-from nltk.translate.bleu_score import corpus_bleu
+# from nltk.translate.bleu_score import corpus_bleu
 import os
 import re
 import subprocess
