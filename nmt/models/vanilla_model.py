@@ -253,9 +253,10 @@ class BaseModel(object):
     # endregion
 
     # Train Summary
+    avg_loss = tf.divide(self.loss, self.batch_size)
     self.train_summary = tf.summary.merge(
         [tf.summary.scalar("lr", self.learning_rate),
-         tf.summary.scalar("train_loss", self.loss)] +
+         tf.summary.scalar("train_loss", avg_loss)] +
         self.grad_norm_summary
     )
 
