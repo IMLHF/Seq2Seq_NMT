@@ -188,6 +188,7 @@ class BaseConfig(StaticKey):
   decoder_causality = True
   before_logits_is_tgt_embedding = True
   use_tf_while_loop_decode = True
+  transformer_use_rnn_encoder = False
 
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
@@ -230,6 +231,15 @@ class C004_attention_scaled_luong(BaseConfig): # DONE 15123 ***
   attention = 'scaled_luong'
   optimizer = 'adam'
   learning_rate = 0.001
+
+
+class C004_attention_scaled_luong_lr03(BaseConfig): # 15047
+  VISIBLE_GPU = "2"
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+
 
 class C004_attention_scaled_luong_RNNoutput(BaseConfig): # DONE 15123
   model_type = 'standard_attention'
@@ -312,6 +322,7 @@ class TransformerTest(BaseConfig):
   learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
 
+
 class TransformerTest_outembed(BaseConfig):
   VISIBLE_GPU = "3"
   batch_size = 128
@@ -332,6 +343,18 @@ class TransformerTest_nocusality(BaseConfig):
   learning_rate = 0.0003
   before_logits_is_tgt_embedding = False
   decoder_causality = False
+
+
+class TransformerTest_rnnencoder(BaseConfig):
+  VISIBLE_GPU = "0"
+  batch_size = 128
+  encoder_num_layers = 2
+  decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+  before_logits_is_tgt_embedding = False
+  transformer_use_rnn_encoder = True
 
 
 class TransformerTest_lr03warmup(BaseConfig):
@@ -355,7 +378,7 @@ class TransformerTest_lr10warmup(BaseConfig):
   use_lr_warmup = True
 
 
-PARAM = TransformerTest
+PARAM = C004_attention_scaled_luong_lr03
 
 if __name__ == '__main__':
   pass

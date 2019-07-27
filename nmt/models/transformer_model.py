@@ -260,7 +260,7 @@ def positionwise_FC(inputs, num_units, scope="positionwise_feedforward"):
   return outputs
 
 
-class Transformer(vanilla_model.BaseModel):
+class Transformer(vanilla_model.RNNSeq2SeqModel):
   def _build_encoder(self, seq, src_seq_lengths):
     """
     Args:
@@ -269,6 +269,8 @@ class Transformer(vanilla_model.BaseModel):
     Returns:
       memory: encoder outputs. [batch, time_src, d_model]
     """
+    if PARAM.transformer_use_rnn_encoder:
+      return super(Transformer, self)._build_encoder(seq, src_seq_lengths)
     # param
     src_max_len = PARAM.src_max_len
     src_embed_size = PARAM.src_embed_size

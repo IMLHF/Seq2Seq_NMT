@@ -326,7 +326,8 @@ class RNNSeq2SeqModel(BaseModel):
         # self._debug=encoder_state[0][0].get_shape().as_list()
         # encoder_state: [layers, 2(c,h), batch, units]
       elif PARAM.encoder_type == "bi":
-        assert PARAM.encoder_num_layers*2 == PARAM.decoder_num_layers, "2*encoder_layers == decoder_layers if bidirectional rnn used."
+        if PARAM.model_type in ["vanilla", "standard_attention", "gnmt"]: # except for transformer model
+          assert PARAM.encoder_num_layers*2 == PARAM.decoder_num_layers, "2*encoder_layers == decoder_layers if bidirectional rnn used."
         residual_fn = model_helper.stack_bi_rnn_residual_fn if PARAM.stack_bi_rnn else None
         fw_multi_cell = model_helper.multiRNNCell(
             unit_type=PARAM.encoder_unit_type,
