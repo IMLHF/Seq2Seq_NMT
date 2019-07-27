@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.python.framework import dtypes
 
 from . import vanilla_model
+from . import rnn_attention_model
 from ..utils import misc_utils
 from ..FLAGS import PARAM
 
@@ -260,7 +261,7 @@ def positionwise_FC(inputs, num_units, scope="positionwise_feedforward"):
   return outputs
 
 
-class Transformer(vanilla_model.RNNSeq2SeqModel):
+class Transformer(rnn_attention_model.RNNAttentionModel):
   def _build_encoder(self, seq, src_seq_lengths):
     """
     Args:
@@ -435,6 +436,9 @@ class Transformer(vanilla_model.RNNSeq2SeqModel):
       self.target_seq_lengths
       self.target_in_id_seq, [<s>.id, idx...]
     """
+    if PARAM.transformer_use_rnn_decoder:
+      return super(Transformer, self)._build_decoder(encoder_outputs, encoder_state)
+
     del encoder_state
     if self.mode == PARAM.MODEL_TRAIN_KEY or self.mode == PARAM.MODEL_VALIDATE_KEY:
       return self._decoder_once(self.target_in_id_seq, encoder_outputs)

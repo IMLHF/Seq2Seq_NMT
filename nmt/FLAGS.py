@@ -189,6 +189,7 @@ class BaseConfig(StaticKey):
   before_logits_is_tgt_embedding = True
   use_tf_while_loop_decode = True
   transformer_use_rnn_encoder = False
+  transformer_use_rnn_decoder = False # if true, pass_state_E2D must be set to False
 
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
@@ -346,15 +347,28 @@ class TransformerTest_nocusality(BaseConfig):
 
 
 class TransformerTest_rnnencoder(BaseConfig):
-  VISIBLE_GPU = "0"
+  VISIBLE_GPU = "2"
   batch_size = 128
   encoder_num_layers = 2
   decoder_num_layers = 4
   model_type = 'transformer'
   optimizer = 'adam'
-  learning_rate = 0.0003
+  learning_rate = 0.0005
   before_logits_is_tgt_embedding = False
   transformer_use_rnn_encoder = True
+
+
+class TransformerTest_rnndecoder(BaseConfig):
+  VISIBLE_GPU = "3"
+  batch_size = 128
+  encoder_num_layers = 4
+  decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0005
+  before_logits_is_tgt_embedding = False
+  transformer_use_rnn_decoder = True
+  pass_state_E2D = False
 
 
 class TransformerTest_lr03warmup(BaseConfig):
@@ -378,7 +392,7 @@ class TransformerTest_lr10warmup(BaseConfig):
   use_lr_warmup = True
 
 
-PARAM = C004_attention_scaled_luong_lr03
+PARAM = TransformerTest_rnndecoder
 
 if __name__ == '__main__':
   pass

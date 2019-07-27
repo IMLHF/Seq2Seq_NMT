@@ -13,8 +13,9 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
         memory, multiplier=beam_width)
     source_sequence_length = tf.contrib.seq2seq.tile_batch(
         source_sequence_length, multiplier=beam_width)
-    encoder_state = tf.contrib.seq2seq.tile_batch(
-        encoder_state, multiplier=beam_width)
+    if encoder_state is not None: # if encoder not pass state to decoder, it may be None
+      encoder_state = tf.contrib.seq2seq.tile_batch(
+          encoder_state, multiplier=beam_width)
     batch_size = self.batch_size * beam_width
     return memory, source_sequence_length, encoder_state, batch_size
 
@@ -94,6 +95,7 @@ class RNNAttentionModel(vanilla_model.RNNSeq2SeqModel):
 
     # whether pass encoder_state to decoder
     if PARAM.pass_state_E2D:
+      assert encoder_state is not None, "encoder state is None."
       decoder_initial_state = attentioned_cell.zero_state(batch_size, self.dtype).clone(
           cell_state=encoder_state)
     else:
