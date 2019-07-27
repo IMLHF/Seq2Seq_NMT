@@ -185,6 +185,7 @@ class BaseConfig(StaticKey):
   dec_d_positionwise_FC = 1024
   enc_num_att_heads = 8
   dec_num_att_heads = 8
+  decoder_causality = True
   before_logits_is_tgt_embedding = True
   use_tf_while_loop_decode = True
 
@@ -302,7 +303,7 @@ class TransformerTest_LOOP(BaseConfig):
 
 
 class TransformerTest(BaseConfig):
-  VISIBLE_GPU = "2"
+  VISIBLE_GPU = "1"
   batch_size = 128
   encoder_num_layers = 4
   decoder_num_layers = 4
@@ -319,6 +320,19 @@ class TransformerTest_outembed(BaseConfig):
   model_type = 'transformer'
   optimizer = 'adam'
   learning_rate = 0.0003
+
+
+class TransformerTest_nocusality(BaseConfig):
+  VISIBLE_GPU = "2"
+  batch_size = 128
+  encoder_num_layers = 4
+  decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+  before_logits_is_tgt_embedding = False
+  decoder_causality = False
+
 
 class TransformerTest_lr03warmup(BaseConfig):
   VISIBLE_GPU = "2"
@@ -341,7 +355,7 @@ class TransformerTest_lr10warmup(BaseConfig):
   use_lr_warmup = True
 
 
-PARAM = TransformerTest_lr10warmup
+PARAM = TransformerTest
 
 if __name__ == '__main__':
   pass

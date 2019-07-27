@@ -336,6 +336,39 @@ class Transformer(vanilla_model.BaseModel):
 
     with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
       # embedding
+      # TODO add calculate inputs_seq_lengths
+      if is_training:
+        dec_inputs_lengths = self.target_seq_lengths
+      else:
+        #inputs: [batch, time]
+        tgt_eos_id = tf.cast(
+            self.tgt_vocab_table.lookup(tf.constant(PARAM.eos)), tf.int32)
+        ones = tf.ones_like(inputs)
+        eos_mat = tgt_eos_id * ones
+        zeros = tf.zeros_like(inputs)
+        eos_onehot = tf.where(tf.equal(inputs, eos_mat), ones, zeros)
+
+        inputs_shape = tf.shape(inputs)
+        cur_bs = inputs_shape[0]
+        max_mask_len = inputs_shape[1]
+        lengths = tf.constant([], dtype=tf.int32)
+
+        def body(i, batch_size, lengths):
+          eos_idx = tf.to_int32(tf.where(eos_onehot[i]))
+          cond = tf.equal(tf.shape(eos_idx)[0], 0)
+          mask_len = tf.cond(cond, lambda:max_mask_len, lambda:eos_idx[0][0])
+          lengths = tf.concat([lengths,[mask_len]],-1)
+          return i+1, batch_size, lengths
+
+
+        _, _, lengths = tf.while_loop(lambda i, batch_size, _: i < batch_size, body,
+                                      (0, cur_bs, lengths),
+                                      shape_invariants=(tf.TensorShape(None),
+                                                        tf.TensorShape(None),
+                                                        tf.TensorShape([None]),))
+
+        dec_inputs_lengths = lengths
+
       dec = tf.nn.embedding_lookup(self.embedding_decoder,  # ids->embeding
                                    inputs)  # [batch, time_tgt, embedding_vec]
       dec *= tgt_embed_size ** 0.5
@@ -346,8 +379,8 @@ class Transformer(vanilla_model.BaseModel):
       for i in range(dec_n_blocks):
         with tf.variable_scope("blocks_{}".format(i), reuse=tf.AUTO_REUSE):
           # masked self_attention (causality system)
-          KV_lengths = tf.fill([tf.shape(dec)[0]], tf.shape(dec)[1]) if not is_training else self.target_seq_lengths
-          Q_lengths = KV_lengths
+          KV_lengths = dec_inputs_lengths
+          Q_lengths = dec_inputs_lengths
           dec = multihead_attention(queries=dec,
                                     keys=dec,
                                     values=dec,
@@ -357,12 +390,12 @@ class Transformer(vanilla_model.BaseModel):
                                     num_heads=dec_num_heads,
                                     dropout_rate=dec_droprate,
                                     training=is_training,
-                                    causality=True,
+                                    causality=PARAM.decoder_causality,
                                     scope="self_attention")
 
           # vanilla attention
           KV_lengths = self.source_seq_lengths
-          Q_lengths = tf.fill([tf.shape(dec)[0]], tf.shape(dec)[1]) if not is_training else self.target_seq_lengths
+          Q_lengths = dec_inputs_lengths
           dec = multihead_attention(queries=dec,
                                     keys=memory,
                                     values=memory,
