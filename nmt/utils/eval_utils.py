@@ -66,9 +66,10 @@ def evalute(ref_textline_file, trans_textline_file, metric, subword_option):
     evaluation_score = _rouge(ref_textline_file, trans_textline_file,
                               subword_option=subword_option)
   elif metric.lower() == "accuracy":
-    evaluation_score = _accuracy(ref_textline_file, trans_textline_file)
-  elif metric.lower() == "word_accuracy":
+    # evaluation_score = _accuracy(ref_textline_file, trans_textline_file)
     evaluation_score = _word_accuracy(ref_textline_file, trans_textline_file)
+  # elif metric.lower() == "word_accuracy":
+  #   evaluation_score = _word_accuracy(ref_textline_file, trans_textline_file)
   else:
     raise ValueError("Unknown metric %s" % metric)
 
@@ -185,12 +186,12 @@ def _word_accuracy(label_file, pred_file):
 def _moses_bleu(multi_bleu_script, tgt_test, trans_file, subword_option=None):
   """Compute BLEU scores using Moses multi-bleu.perl script."""
 
-  # TODO(thangluong): perform rewrite using python
+  # ???(thangluong): perform rewrite using python
   # BPE
   if subword_option == "bpe":
     debpe_tgt_test = tgt_test + ".debpe"
     if not os.path.exists(debpe_tgt_test):
-      # TODO(thangluong): not use shell=True, can be a security hazard
+      # ???(thangluong): not use shell=True, can be a security hazard
       subprocess.call("cp %s %s" % (tgt_test, debpe_tgt_test), shell=True)
       subprocess.call("sed s/@@ //g %s" % (debpe_tgt_test),
                       shell=True)
@@ -206,7 +207,7 @@ def _moses_bleu(multi_bleu_script, tgt_test, trans_file, subword_option=None):
   cmd = "%s %s < %s" % (multi_bleu_script, tgt_test, trans_file)
 
   # subprocess
-  # TODO(thangluong): not use shell=True, can be a security hazard
+  # ???(thangluong): not use shell=True, can be a security hazard
   bleu_output = subprocess.check_output(cmd, shell=True)
 
   # extract BLEU score
