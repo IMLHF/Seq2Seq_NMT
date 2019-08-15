@@ -1,5 +1,5 @@
 import abc
-# import collections
+import collections
 import time
 import tensorflow as tf
 import tensorflow.contrib as contrib
@@ -15,6 +15,7 @@ misc_utils.check_tensorflow_version()
 
 __all__ = [
     # 'TrainOutputs',
+    'DecodeOutputs',
     'BaseModel',
     'RNNSeq2SeqModel']
 
@@ -24,6 +25,14 @@ __all__ = [
 #                      "learning_rate"))):
 #   """To allow for flexibily in returing different outputs."""
 #   pass
+
+
+class DecodeOutputs(collections.namedtuple(
+    "DecodeOutputs", ("logits",
+                      "sample_id",
+                      "decoder_final_state",
+                      "rnn_outputs_for_sampled_sotmax"))):
+  pass
 
 class BaseModel(object):
   """
@@ -177,9 +186,10 @@ class BaseModel(object):
         assert PARAM.encoder_num_units == PARAM.decoder_num_units, 'encoder_num_units != decoder_num_units and not projection'
 
       # decoder
-      self.logits, self.sample_id, _, rnn_outputs_for_sampled_sotmax = (
-        self._build_decoder(encoder_outputs, encoder_final_state)
-      )  # build_decoder, encoder_outputs is not used (for attention)
+      decode_outputs = self._build_decoder(encoder_outputs, encoder_final_state) # build_decoder
+      self.logits = decode_outputs.logits
+      self.sample_id = decode_outputs.sample_id
+      # rnn_outputs_for_sampled_sotmax = decode_outputs.rnn_outputs_for_sampled_sotmax
 
     trainable_variables = tf.trainable_variables()
     self.save_variables.extend([var for var in trainable_variables])
@@ -253,7 +263,7 @@ class BaseModel(object):
     # endregion
 
     # Train Summary
-    avg_loss = tf.divide(self.loss, self.batch_size)
+    avg_loss = tf.divide(self.loss, tf.cast(self.batch_size, self.dtype))
     self.train_summary = tf.summary.merge(
         [tf.summary.scalar("lr", self.learning_rate),
          tf.summary.scalar("train_loss", avg_loss)] +
@@ -278,7 +288,7 @@ class BaseModel(object):
                      encoder_final_state):
     """
     Returns:
-      A tuple: (final_logits, decoder_final_state)
+      instance of DecodeOutputs: (final_logits, decoder_final_state, ...)
     """
     import traceback
     traceback.print_exc()
@@ -419,8 +429,8 @@ class RNNSeq2SeqModel(BaseModel):
     Args:
       a tuple: (encoder_outputs, encoder_final_state)
     Returns:
-      A tuple: (rnn_noproj_outputs, logits, sample_id, decoder_final_state)
-        logits dim: [batch, time, vocab_size]
+      DecodeOutputs: (logits, sample_id, decoder_final_state, rnn_noproj_outputs)
+      logits dim: [batch, time, vocab_size]
     """
 
     with tf.variable_scope("decoder") as decoder_scope:
@@ -494,8 +504,9 @@ class RNNSeq2SeqModel(BaseModel):
         )
         rnn_outputs_for_sampled_sotmax = tf.no_op()
         if PARAM.infer_mode == "beam_search":
-          logits = tf.no_op() # # beam_search decoder have no logits (just scores)
+          logits = tf.no_op() # beam_search decoder have no logits (just scores)
           sample_id = decoder_outputs.predicted_ids
+          # decoder_outputs.beam_search_decoder_output.scores : [batch, beamsize], log_prob for every sentence.
         else:
           logits = decoder_outputs.rnn_output
           sample_id = decoder_outputs.sample_id
@@ -526,7 +537,7 @@ class RNNSeq2SeqModel(BaseModel):
             scope=decoder_scope
         )
 
-        # if BasicDecoder->output_layer=self.output_layer, cannot use sampled_sotmax
+        # if BasicDecoder->output_layer=self.output_layer, cannot use sampled_softmax
         rnn_outputs_for_sampled_sotmax = decoder_outputs.rnn_output
 
         # if BasicDecoder->output_layer=None
@@ -543,4 +554,9 @@ class RNNSeq2SeqModel(BaseModel):
       # self._debug=logits.get_shape().as_list()
       # print(self._debug)
       decoder_final_state = final_context_state
-    return logits, sample_id, decoder_final_state, rnn_outputs_for_sampled_sotmax
+
+    # return logits, sample_id, decoder_final_state, rnn_outputs_for_sampled_sotmax
+    return DecodeOutputs(logits=logits,
+                         sample_id=sample_id,
+                         decoder_final_state=decoder_final_state,
+                         rnn_outputs_for_sampled_sotmax=rnn_outputs_for_sampled_sotmax)

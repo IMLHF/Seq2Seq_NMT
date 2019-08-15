@@ -441,7 +441,11 @@ class Transformer(rnn_attention_model.RNNAttentionModel):
 
     del encoder_state
     if self.mode == PARAM.MODEL_TRAIN_KEY or self.mode == PARAM.MODEL_VALIDATE_KEY:
-      return self._decoder_once(self.target_in_id_seq, encoder_outputs)
+      logits, sample_id, _, dec = self._decoder_once(self.target_in_id_seq, encoder_outputs)
+      return vanilla_model.DecodeOutputs(logits=logits,
+                                         sample_id=sample_id,
+                                         decoder_final_state=None,
+                                         rnn_outputs_for_sampled_sotmax=dec)
 
     if self.mode == PARAM.MODEL_INFER_KEY:
       tgt_sos_id = tf.cast(
@@ -483,4 +487,8 @@ class Transformer(rnn_attention_model.RNNAttentionModel):
                                                                           tf.TensorShape([None, None, None]),
                                                                           tf.TensorShape([None, None])))
 
-      return logits, sample_id, None, dec
+      # return logits, sample_id, None, dec
+      return vanilla_model.DecodeOutputs(logits=logits,
+                                         sample_id=sample_id,
+                                         decoder_final_state=None,
+                                         rnn_outputs_for_sampled_sotmax=dec)
