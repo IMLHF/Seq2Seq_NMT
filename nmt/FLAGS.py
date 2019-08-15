@@ -12,7 +12,7 @@ class BaseConfig(StaticKey):
   VISIBLE_GPU = "0"
   # root_dir = '/mnt/d/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
   # root_dir = '/mnt/f/OneDrive/workspace/tf_recipe/Seq2Seq_NMT'
-  root_dir = '/home/root1/worklhf/nmt_seq2seq_first/'
+  root_dir = '/home/room/worklhf/nmt_seq2seq_first/'
   min_TF_version = "1.12.0"
   num_keep_ckpts = 2
   '''
@@ -166,7 +166,7 @@ class BaseConfig(StaticKey):
   verbose_print_hparams = True
 
   start_epoch = 1
-  max_epoch = 100
+  max_epoch = 50
 
   #################
   # Extra
@@ -190,6 +190,11 @@ class BaseConfig(StaticKey):
   use_tf_while_loop_decode = True
   transformer_use_rnn_encoder = False
   transformer_use_rnn_decoder = False # if true, pass_state_E2D must be set to False
+
+
+  ########################
+  # MBR (minimum Bayes risk) training
+  #####################
 
 
 class C001_adam_greedy(BaseConfig): # DONE 15123
@@ -233,6 +238,20 @@ class C004_attention_scaled_luong(BaseConfig): # DONE 15123 ***
   optimizer = 'adam'
   learning_rate = 0.001
 
+class C004_attention_normed_bahdanau(BaseConfig): #
+  model_type = 'standard_attention'
+  attention = 'normed_bahdanau'
+  optimizer = 'adam'
+  learning_rate = 0.001
+
+class C004_attention_init_attention(BaseConfig): #
+  model_type = 'standard_attention'
+  attention = 'scaled_luong'
+  optimizer = 'adam'
+  learning_rate = 0.001
+
+  output_attention = False
+  attention_layer_size = None
 
 class C004_attention_scaled_luong_lr03(BaseConfig): # 15047
   VISIBLE_GPU = "2"
@@ -264,12 +283,6 @@ class C004_attention_scaled_luong_deep(BaseConfig): # DONE 15123
   encoder_num_layers = 3
   decoder_num_layers = 6
 
-class nmt_test(BaseConfig):
-  model_type = 'standard_attention'
-  attention = 'scaled_luong'
-  optimizer = 'adam'
-  learning_rate = 0.001
-
 class gnmt_test_curFalse(BaseConfig):
   model_type = 'gnmt'
   encoder_type = 'bi'
@@ -285,12 +298,6 @@ class gnmt_test_curTrue(BaseConfig): # better
   optimizer = 'adam'
   learning_rate = 0.001
   GNMT_current_attention = True
-
-class C004_attention_scaled_luong_maskedlogits(BaseConfig):
-  model_type = 'standard_attention'
-  attention = 'scaled_luong'
-  optimizer = 'adam'
-  learning_rate = 0.001
 
 class TransformerTest_FOR(BaseConfig):
   batch_size = 128
@@ -314,10 +321,21 @@ class TransformerTest_LOOP(BaseConfig):
 
 
 class TransformerTest(BaseConfig):
-  VISIBLE_GPU = "1"
+  # VISIBLE_GPU = "1"
   batch_size = 128
   encoder_num_layers = 4
   decoder_num_layers = 4
+  model_type = 'transformer'
+  optimizer = 'adam'
+  learning_rate = 0.0003
+  before_logits_is_tgt_embedding = False
+
+
+class TransformerTest_ed2block(BaseConfig):
+  VISIBLE_GPU = "0"
+  batch_size = 128
+  encoder_num_layers = 2
+  decoder_num_layers = 2
   model_type = 'transformer'
   optimizer = 'adam'
   learning_rate = 0.0003
@@ -347,7 +365,7 @@ class TransformerTest_nocusality(BaseConfig):
 
 
 class TransformerTest_rnnencoder(BaseConfig):
-  VISIBLE_GPU = "2"
+  # VISIBLE_GPU = "2"
   batch_size = 128
   encoder_num_layers = 2
   decoder_num_layers = 4
@@ -392,7 +410,7 @@ class TransformerTest_lr10warmup(BaseConfig):
   use_lr_warmup = True
 
 
-PARAM = TransformerTest_rnndecoder
+PARAM = TransformerTest
 
 if __name__ == '__main__':
   pass
