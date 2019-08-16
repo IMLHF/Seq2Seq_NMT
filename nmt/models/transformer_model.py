@@ -349,7 +349,7 @@ class Transformer(rnn_attention_model.RNNAttentionModel):
         ones = tf.ones_like(inputs)
         eos_mat = tgt_eos_id * ones
         zeros = tf.zeros_like(inputs)
-        eos_onehot = tf.where(tf.equal(inputs, eos_mat), ones, zeros)
+        eos_onehot = tf.where(tf.equal(inputs, eos_mat), ones, zeros) # [batch, time]
 
         inputs_shape = tf.shape(inputs)
         cur_bs = inputs_shape[0]
@@ -357,8 +357,8 @@ class Transformer(rnn_attention_model.RNNAttentionModel):
         lengths = tf.constant([], dtype=tf.int32)
 
         def body(i, batch_size, lengths):
-          eos_idx = tf.to_int32(tf.where(eos_onehot[i]))
-          cond = tf.equal(tf.shape(eos_idx)[0], 0)
+          eos_idx = tf.to_int32(tf.where(eos_onehot[i])) # [N, rank]
+          cond = tf.equal(tf.shape(eos_idx)[0], 0) # tf.shape(eos_idx)[0]: num_true
           mask_len = tf.cond(cond, lambda:max_mask_len, lambda:eos_idx[0][0])
           lengths = tf.concat([lengths,[mask_len]],-1)
           return i+1, batch_size, lengths
